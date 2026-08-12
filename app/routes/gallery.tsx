@@ -1,7 +1,7 @@
 import type { Route } from "./+types/gallery";
 
 export function meta({}: Route.MetaArgs) {
-	return [{ title: "Art Gallery" }];
+	return [{ title: "Collection — ArtDrop Spot" }];
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
@@ -20,59 +20,201 @@ export async function loader({ context }: Route.LoaderArgs) {
 	return { items };
 }
 
+const COLORS = {
+	bg: "#0B0B10",
+	bgPanel: "#151420",
+	violet: "#8B5CF6",
+	coral: "#FF6B6B",
+	text: "#F4F2F8",
+	textDim: "#9C97AD",
+	border: "#26243A",
+};
+
 export default function Gallery({ loaderData }: Route.ComponentProps) {
 	const { items } = loaderData;
 
 	return (
-		<div style={{ maxWidth: 960, margin: "40px auto", padding: 24 }}>
-			<h1>Art Gallery</h1>
-			<p>
-				<a href="/upload">Upload new art</a>
-			</p>
+		<div
+			style={{
+				fontFamily: "'Inter', sans-serif",
+				background: COLORS.bg,
+				color: COLORS.text,
+				minHeight: "100vh",
+			}}
+		>
+			<link
+				rel="stylesheet"
+				href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&display=swap"
+			/>
 
-			{items.length === 0 && <p>No artwork uploaded yet.</p>}
-
-			<div
+			{/* Header */}
+			<header
 				style={{
-					display: "grid",
-					gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-					gap: 16,
-					marginTop: 24,
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "space-between",
+					padding: "18px 32px",
+					borderBottom: `1px solid ${COLORS.border}`,
 				}}
 			>
-				{items.map((item) => (
-					<div key={item.key}>
-						<div
-							style={{
-								background: "#111",
-								borderRadius: 8,
-								padding: 12,
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-								minHeight: 220,
-							}}
-						>
-							<img
-								src={`/art/${item.key}`}
-								alt={item.title}
-								style={{
-									maxWidth: "100%",
-									maxHeight: 260,
-									objectFit: "contain",
-									borderRadius: 4,
-								}}
-							/>
-						</div>
-						<div style={{ marginTop: 8 }}>
-							<div style={{ fontWeight: 600 }}>{item.title}</div>
-							<div style={{ opacity: 0.7, fontSize: 14 }}>
-								by {item.artist}
-							</div>
-						</div>
-					</div>
-				))}
+				<a href="/" style={{ textDecoration: "none", color: "inherit" }}>
+					<Logo />
+				</a>
+				<nav style={{ display: "flex", alignItems: "center", gap: 32 }}>
+					<a href="/upload" style={navLinkStyle}>
+						Upload
+					</a>
+					<a href="/gallery" style={{ ...navLinkStyle, color: COLORS.violet }}>
+						Collection
+					</a>
+					<a href="/updates" style={navLinkStyle}>
+						Update log
+					</a>
+				</nav>
+			</header>
+
+			{/* Body */}
+			<div style={{ maxWidth: 1200, margin: "0 auto", padding: "48px 32px" }}>
+				<h1
+					style={{
+						fontFamily: "'Archivo Black', sans-serif",
+						fontSize: 32,
+						margin: "0 0 8px",
+					}}
+				>
+					Collection
+				</h1>
+				<p style={{ color: COLORS.textDim, fontSize: 15, marginBottom: 8 }}>
+					Everything the community has dropped so far.
+				</p>
+				<a
+					href="/upload"
+					style={{
+						display: "inline-block",
+						marginBottom: 32,
+						color: COLORS.violet,
+						fontWeight: 600,
+						fontSize: 14,
+						textDecoration: "none",
+					}}
+				>
+					+ Upload new art
+				</a>
+
+				{items.length === 0 && (
+					<p style={{ color: COLORS.textDim }}>
+						No artwork uploaded yet — be the first.
+					</p>
+				)}
+
+				<div
+					style={{
+						display: "grid",
+						gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+						gap: 24,
+					}}
+				>
+					{items.map((item) => (
+						<ArtCard
+							key={item.key}
+							title={item.title}
+							artist={item.artist}
+							imgKey={item.key}
+						/>
+					))}
+				</div>
 			</div>
 		</div>
 	);
 }
+
+function Logo() {
+	return (
+		<div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+			<div
+				style={{
+					width: 30,
+					height: 30,
+					borderRadius: 8,
+					background: `linear-gradient(135deg, ${COLORS.violet}, ${COLORS.coral})`,
+					flexShrink: 0,
+				}}
+			/>
+			<span
+				style={{
+					fontFamily: "'Archivo Black', sans-serif",
+					fontSize: 17,
+					letterSpacing: 0.3,
+				}}
+			>
+				ArtDrop <span style={{ color: COLORS.violet }}>Spot</span>
+			</span>
+		</div>
+	);
+}
+
+function ArtCard({
+	title,
+	artist,
+	imgKey,
+}: {
+	title: string;
+	artist: string;
+	imgKey: string;
+}) {
+	return (
+		<div>
+			<div
+				style={{
+					aspectRatio: "1 / 1",
+					borderRadius: 12,
+					padding: 2,
+					background: `linear-gradient(135deg, ${COLORS.violet}, ${COLORS.coral})`,
+				}}
+			>
+				<div
+					style={{
+						width: "100%",
+						height: "100%",
+						borderRadius: 10,
+						background: COLORS.bgPanel,
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						overflow: "hidden",
+					}}
+				>
+					<img
+						src={`/art/${imgKey}`}
+						alt={title}
+						style={{
+							maxWidth: "100%",
+							maxHeight: "100%",
+							objectFit: "contain",
+						}}
+					/>
+				</div>
+			</div>
+			<p
+				style={{
+					margin: "10px 2px 0",
+					fontWeight: 600,
+					fontSize: 14,
+					color: COLORS.text,
+				}}
+			>
+				{title}
+			</p>
+			<p style={{ margin: "2px 2px 0", fontSize: 12, color: COLORS.textDim }}>
+				by {artist}
+			</p>
+		</div>
+	);
+}
+
+const navLinkStyle: React.CSSProperties = {
+	color: COLORS.text,
+	textDecoration: "none",
+	fontWeight: 600,
+	fontSize: 14,
+};
