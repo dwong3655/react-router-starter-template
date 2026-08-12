@@ -3,7 +3,7 @@ import type { Route } from "./+types/home";
 export function meta({}: Route.MetaArgs) {
 	return [
 		{ title: "ArtDrop Spot" },
-		{ name: "description", content: "Upload and browse digital art." },
+		{ name: "description", content: "Drop your art. Get discovered." },
 	];
 }
 
@@ -18,108 +18,168 @@ export async function loader({ context }: Route.LoaderArgs) {
 		.map((obj) => ({
 			key: obj.key,
 			title: obj.customMetadata?.title ?? "Untitled",
+			artist: obj.customMetadata?.artist ?? "Unknown",
 		}));
 
 	return { items };
 }
 
+const COLORS = {
+	bg: "#0B0B10",
+	bgPanel: "#151420",
+	violet: "#8B5CF6",
+	coral: "#FF6B6B",
+	text: "#F4F2F8",
+	textDim: "#9C97AD",
+	border: "#26243A",
+};
+
 export default function Home({ loaderData }: Route.ComponentProps) {
 	const { items } = loaderData;
 
 	return (
-		<div style={{ fontFamily: "sans-serif", color: "#1a1a1a" }}>
+		<div
+			style={{
+				fontFamily: "'Inter', sans-serif",
+				background: COLORS.bg,
+				color: COLORS.text,
+				minHeight: "100vh",
+			}}
+		>
+			<link
+				rel="stylesheet"
+				href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&display=swap"
+			/>
+
 			{/* Header */}
 			<header
 				style={{
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "space-between",
-					background: "#2b2b2b",
-					color: "#fff",
-					padding: "16px 24px",
+					padding: "18px 32px",
+					borderBottom: `1px solid ${COLORS.border}`,
+					position: "sticky",
+					top: 0,
+					background: "rgba(11,11,16,0.9)",
+					backdropFilter: "blur(8px)",
+					zIndex: 10,
 				}}
 			>
-				<div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-					<span style={{ fontSize: 22 }}>🎨</span>
-					<span style={{ fontSize: 20, fontWeight: 700 }}>
-						ArtDrop <span style={{ fontWeight: 400 }}>SPOT</span>
-					</span>
-				</div>
+				<Logo />
 
-				<nav style={{ display: "flex", alignItems: "center", gap: 28 }}>
+				<nav style={{ display: "flex", alignItems: "center", gap: 32 }}>
 					<a href="/upload" style={navLinkStyle}>
-						UPLOAD
+						Upload
 					</a>
 					<a href="/gallery" style={navLinkStyle}>
-						COLLECTION
+						Collection
 					</a>
 					<a href="/updates" style={navLinkStyle}>
-						UPDATE LOG
+						Update log
 					</a>
 					<input
 						type="search"
-						placeholder="SEARCH"
+						placeholder="Search art..."
 						style={{
-							padding: "8px 12px",
-							borderRadius: 4,
-							border: "none",
-							width: 180,
+							padding: "9px 14px",
+							borderRadius: 8,
+							border: `1px solid ${COLORS.border}`,
+							background: COLORS.bgPanel,
+							color: COLORS.text,
+							width: 200,
+							fontSize: 14,
+							fontFamily: "'Inter', sans-serif",
 						}}
 					/>
 				</nav>
 			</header>
 
+			{/* Hero */}
+			<section
+				style={{
+					padding: "72px 32px 56px",
+					textAlign: "center",
+					borderBottom: `1px solid ${COLORS.border}`,
+				}}
+			>
+				<h1
+					style={{
+						fontFamily: "'Archivo Black', sans-serif",
+						fontSize: "clamp(36px, 6vw, 64px)",
+						lineHeight: 1.05,
+						margin: "0 0 16px",
+						background: `linear-gradient(90deg, ${COLORS.violet}, ${COLORS.coral})`,
+						WebkitBackgroundClip: "text",
+						WebkitTextFillColor: "transparent",
+						backgroundClip: "text",
+					}}
+				>
+					DROP YOUR ART.
+					<br />
+					GET DISCOVERED.
+				</h1>
+				<p
+					style={{
+						color: COLORS.textDim,
+						fontSize: 16,
+						maxWidth: 480,
+						margin: "0 auto 28px",
+						lineHeight: 1.6,
+					}}
+				>
+					A space for digital artists to share their work, build a
+					following, and see what everyone else is making.
+				</p>
+				<a href="/upload" style={ctaButtonStyle}>
+					Upload your art
+				</a>
+			</section>
+
 			{/* Body */}
-			<div style={{ display: "flex", padding: 24, gap: 24 }}>
+			<div
+				style={{
+					display: "flex",
+					gap: 32,
+					padding: "48px 32px",
+					maxWidth: 1200,
+					margin: "0 auto",
+					flexWrap: "wrap",
+				}}
+			>
 				{/* Main content */}
-				<main style={{ flex: 1 }}>
-					<h1 style={{ fontSize: 22, letterSpacing: 1, marginBottom: 20 }}>
-						RECENT CREATIONS:
-					</h1>
+				<main style={{ flex: "1 1 600px" }}>
+					<h2
+						style={{
+							fontFamily: "'Archivo Black', sans-serif",
+							fontSize: 22,
+							letterSpacing: 0.5,
+							marginBottom: 24,
+						}}
+					>
+						RECENT CREATIONS
+					</h2>
 
 					{items.length === 0 ? (
-						<p>No artwork uploaded yet.</p>
+						<p style={{ color: COLORS.textDim }}>
+							No artwork uploaded yet — be the first.
+						</p>
 					) : (
 						<div
 							style={{
 								display: "grid",
 								gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-								gap: 24,
+								gap: 20,
 							}}
 						>
 							{items.map((item) => (
-								<div key={item.key}>
-									<div
-										style={{
-											border: "2px solid #1a1a1a",
-											aspectRatio: "1 / 1",
-											display: "flex",
-											alignItems: "center",
-											justifyContent: "center",
-											background: "#fafafa",
-											overflow: "hidden",
-										}}
-									>
-										<img
-											src={`/art/${item.key}`}
-											alt={item.title}
-											style={{
-												maxWidth: "100%",
-												maxHeight: "100%",
-												objectFit: "contain",
-											}}
-										/>
-									</div>
-									<p
-										style={{
-											textAlign: "center",
-											marginTop: 8,
-											fontWeight: 600,
-										}}
-									>
-										[{item.title}]
-									</p>
-								</div>
+								<a
+									key={item.key}
+									href="/gallery"
+									style={{ textDecoration: "none", color: "inherit" }}
+								>
+									<ArtCard title={item.title} artist={item.artist} imgKey={item.key} />
+								</a>
 							))}
 						</div>
 					)}
@@ -128,34 +188,37 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 				{/* Sidebar */}
 				<aside
 					style={{
-						width: 300,
-						background: "#2b2b2b",
-						color: "#fff",
-						padding: 24,
+						width: 280,
 						flexShrink: 0,
+						background: COLORS.bgPanel,
+						border: `1px solid ${COLORS.border}`,
+						borderRadius: 16,
+						padding: 28,
+						height: "fit-content",
 					}}
 				>
-					<div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-						<span style={{ fontSize: 22 }}>🎨</span>
-						<span style={{ fontSize: 20, fontWeight: 700 }}>
-							ArtDrop <span style={{ fontWeight: 400 }}>SPOT</span>
-						</span>
-					</div>
-
-					<p style={{ fontSize: 13, lineHeight: 1.6, opacity: 0.85 }}>
-						A place to upload and share digital art with the world. Drop
-						your work, browse the collection, and see what's new.
+					<Logo />
+					<p
+						style={{
+							fontSize: 14,
+							lineHeight: 1.6,
+							color: COLORS.textDim,
+							margin: "16px 0 24px",
+						}}
+					>
+						Upload your digital art, browse what the community is making, and
+						get your work seen.
 					</p>
 
-					<nav style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 24 }}>
-						<a href="/upload" style={sidebarButtonStyle}>
-							UPLOAD
+					<nav style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+						<a href="/upload" style={sidebarButtonStyle(true)}>
+							Upload
 						</a>
-						<a href="/gallery" style={sidebarButtonStyle}>
-							COLLECTION
+						<a href="/gallery" style={sidebarButtonStyle(false)}>
+							Collection
 						</a>
-						<a href="/updates" style={sidebarButtonStyle}>
-							UPDATE LOG
+						<a href="/updates" style={sidebarButtonStyle(false)}>
+							Update log
 						</a>
 					</nav>
 				</aside>
@@ -164,21 +227,119 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 	);
 }
 
+function Logo() {
+	return (
+		<div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+			<div
+				style={{
+					width: 30,
+					height: 30,
+					borderRadius: 8,
+					background: `linear-gradient(135deg, ${COLORS.violet}, ${COLORS.coral})`,
+					flexShrink: 0,
+				}}
+			/>
+			<span
+				style={{
+					fontFamily: "'Archivo Black', sans-serif",
+					fontSize: 17,
+					letterSpacing: 0.3,
+				}}
+			>
+				ArtDrop <span style={{ color: COLORS.violet }}>Spot</span>
+			</span>
+		</div>
+	);
+}
+
+function ArtCard({
+	title,
+	artist,
+	imgKey,
+}: {
+	title: string;
+	artist: string;
+	imgKey: string;
+}) {
+	return (
+		<div>
+			<div
+				style={{
+					aspectRatio: "1 / 1",
+					borderRadius: 12,
+					padding: 2,
+					background: `linear-gradient(135deg, ${COLORS.violet}, ${COLORS.coral})`,
+				}}
+			>
+				<div
+					style={{
+						width: "100%",
+						height: "100%",
+						borderRadius: 10,
+						background: COLORS.bgPanel,
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						overflow: "hidden",
+					}}
+				>
+					<img
+						src={`/art/${imgKey}`}
+						alt={title}
+						style={{
+							maxWidth: "100%",
+							maxHeight: "100%",
+							objectFit: "contain",
+						}}
+					/>
+				</div>
+			</div>
+			<p
+				style={{
+					margin: "10px 2px 0",
+					fontWeight: 600,
+					fontSize: 14,
+					color: COLORS.text,
+				}}
+			>
+				{title}
+			</p>
+			<p style={{ margin: "2px 2px 0", fontSize: 12, color: COLORS.textDim }}>
+				by {artist}
+			</p>
+		</div>
+	);
+}
+
 const navLinkStyle: React.CSSProperties = {
-	color: "#fff",
+	color: COLORS.text,
 	textDecoration: "none",
 	fontWeight: 600,
 	fontSize: 14,
-	letterSpacing: 0.5,
 };
 
-const sidebarButtonStyle: React.CSSProperties = {
-	background: "#fff",
-	color: "#1a1a1a",
-	textAlign: "center",
-	padding: "12px 0",
-	fontWeight: 700,
-	letterSpacing: 0.5,
+const ctaButtonStyle: React.CSSProperties = {
+	display: "inline-block",
+	background: COLORS.violet,
+	color: "#fff",
 	textDecoration: "none",
-	borderRadius: 2,
+	fontWeight: 700,
+	fontSize: 15,
+	padding: "13px 28px",
+	borderRadius: 999,
 };
+
+function sidebarButtonStyle(primary: boolean): React.CSSProperties {
+	return {
+		display: "block",
+		textAlign: "center",
+		padding: "12px 0",
+		fontWeight: 700,
+		fontSize: 14,
+		textDecoration: "none",
+		borderRadius: 8,
+		background: primary ? COLORS.violet : "transparent",
+		color: primary ? "#fff" : COLORS.text,
+		border: primary ? "none" : `1px solid ${COLORS.border}`,
+	};
+}
