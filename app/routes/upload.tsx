@@ -38,7 +38,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 	await context.cloudflare.env.ART_BUCKET.put(key, file!.stream(), {
 		httpMetadata: { contentType: file!.type },
-		customMetadata: { title, artist },
+		customMetadata: { title, artist, status: "pending" },
 	});
 
 	return { success: true, key };
@@ -254,10 +254,8 @@ export default function Upload({ actionData }: Route.ComponentProps) {
 							fontSize: 14,
 						}}
 					>
-						Uploaded!{" "}
-						<a href="/gallery" style={{ color: COLORS.violet }}>
-							View gallery
-						</a>
+						Submitted! Your art is waiting for review and will appear in the
+						collection once approved.
 					</p>
 				)}
 			</div>
