@@ -26,13 +26,13 @@ export async function loader({ context }: Route.LoaderArgs) {
 }
 
 const COLORS = {
-	bg: "#0B0B10",
-	bgPanel: "#151420",
-	violet: "#8B5CF6",
-	coral: "#FF6B6B",
-	text: "#F4F2F8",
-	textDim: "#9C97AD",
-	border: "#26243A",
+	bg: "#0A0A0A",
+	bgPanel: "#1A1A1A",
+	violet: "#FACC15",
+	coral: "#FACC15",
+	text: "#FFFFFF",
+	textDim: "#9CA3AF",
+	border: "#2E2E2E",
 };
 
 export default function Home({ loaderData }: Route.ComponentProps) {
@@ -79,6 +79,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 					<a href="/updates" style={navLinkStyle}>
 						Update log
 					</a>
+					<a href="/admin" style={{ ...navLinkStyle, color: COLORS.textDim, fontWeight: 500 }}>
+						Sign in
+					</a>
 					<input
 						type="search"
 						placeholder="Search art..."
@@ -110,7 +113,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 						fontSize: "clamp(36px, 6vw, 64px)",
 						lineHeight: 1.05,
 						margin: "0 0 16px",
-						background: `linear-gradient(90deg, ${COLORS.violet}, ${COLORS.coral})`,
+						background: `linear-gradient(90deg, ${COLORS.text}, ${COLORS.violet})`,
 						WebkitBackgroundClip: "text",
 						WebkitTextFillColor: "transparent",
 						backgroundClip: "text",

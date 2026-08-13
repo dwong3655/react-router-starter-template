@@ -25,13 +25,13 @@ export async function action({ request, context }: Route.ActionArgs) {
 }
 
 const COLORS = {
-	bg: "#0B0B10",
-	bgPanel: "#151420",
-	violet: "#8B5CF6",
-	coral: "#FF6B6B",
-	text: "#F4F2F8",
-	textDim: "#9C97AD",
-	border: "#26243A",
+	bg: "#0A0A0A",
+	bgPanel: "#1A1A1A",
+	violet: "#FACC15",
+	coral: "#FACC15",
+	text: "#FFFFFF",
+	textDim: "#9CA3AF",
+	border: "#2E2E2E",
 };
 
 export default function AdminLogin({ actionData }: Route.ComponentProps) {
