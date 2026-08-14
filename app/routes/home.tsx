@@ -419,16 +419,20 @@ function ArtCard({
 						}}
 					>
 						<svg
-							width="15"
+							width="17"
 							height="15"
-							viewBox="0 0 24 24"
+							viewBox="0 0 26 22"
 							fill="none"
 							stroke={showDescription ? "#0A0A0A" : COLORS.textDim}
-							strokeWidth="2"
+							strokeWidth="1.4"
 							strokeLinecap="round"
 							strokeLinejoin="round"
 						>
-							<path d="M21 12a8 8 0 0 1-8 8H8l-5 3 1.5-4.5A8 8 0 1 1 21 12Z" />
+							<path d="M17 2H6a3 3 0 0 0-3 3v6a3 3 0 0 0 3 3h1v4l4-4h6a3 3 0 0 0 3-3V5a3 3 0 0 0-3-3Z" />
+							<circle cx="8" cy="8" r="0.8" fill={showDescription ? "#0A0A0A" : COLORS.textDim} stroke="none" />
+							<circle cx="11.5" cy="8" r="0.8" fill={showDescription ? "#0A0A0A" : COLORS.textDim} stroke="none" />
+							<circle cx="15" cy="8" r="0.8" fill={showDescription ? "#0A0A0A" : COLORS.textDim} stroke="none" />
+							<path d="M20 8h1a3 3 0 0 1 3 3v5a3 3 0 0 1-3 3h-1v3l-3-3" opacity="0.55" />
 						</svg>
 					</button>
 
