@@ -212,7 +212,7 @@ export default function Admin({ loaderData }: Route.ComponentProps) {
 												disabled={isBusy}
 												style={{ ...actionButtonStyle, background: "transparent", color: COLORS.coral, border: `1px solid ${COLORS.coral}` }}
 											>
-												Reject
+												Delete
 											</button>
 										</Form>
 									</div>
