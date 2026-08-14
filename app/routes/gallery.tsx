@@ -1,4 +1,5 @@
 import type { Route } from "./+types/gallery";
+import VoteButton from "../components/VoteButton";
 
 export function meta({}: Route.MetaArgs) {
 	return [{ title: "Collection — ArtDrop Spot" }];
@@ -16,6 +17,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 			key: obj.key,
 			title: obj.customMetadata?.title ?? "Untitled",
 			artist: obj.customMetadata?.artist ?? "Unknown artist",
+			votes: parseInt(obj.customMetadata?.votes ?? "0", 10),
 		}));
 
 	return { items };
@@ -124,6 +126,7 @@ export default function Gallery({ loaderData }: Route.ComponentProps) {
 							title={item.title}
 							artist={item.artist}
 							imgKey={item.key}
+							votes={item.votes}
 						/>
 					))}
 				</div>
@@ -161,10 +164,12 @@ function ArtCard({
 	title,
 	artist,
 	imgKey,
+	votes,
 }: {
 	title: string;
 	artist: string;
 	imgKey: string;
+	votes: number;
 }) {
 	return (
 		<div>
@@ -199,19 +204,32 @@ function ArtCard({
 					/>
 				</div>
 			</div>
-			<p
+			<div
 				style={{
-					margin: "10px 2px 0",
-					fontWeight: 600,
-					fontSize: 14,
-					color: COLORS.text,
+					display: "flex",
+					alignItems: "flex-start",
+					justifyContent: "space-between",
+					gap: 8,
+					marginTop: 10,
 				}}
 			>
-				{title}
-			</p>
-			<p style={{ margin: "2px 2px 0", fontSize: 12, color: COLORS.textDim }}>
-				by {artist}
-			</p>
+				<div>
+					<p
+						style={{
+							margin: "0 2px",
+							fontWeight: 600,
+							fontSize: 14,
+							color: COLORS.text,
+						}}
+					>
+						{title}
+					</p>
+					<p style={{ margin: "2px 2px 0", fontSize: 12, color: COLORS.textDim }}>
+						by {artist}
+					</p>
+				</div>
+				<VoteButton itemKey={imgKey} initialVotes={votes} />
+			</div>
 		</div>
 	);
 }
