@@ -6,11 +6,16 @@ export function meta({}: Route.MetaArgs) {
 	return [{ title: "Upload Art — ArtDrop Spot" }];
 }
 
+function wordCount(text: string): number {
+	return text.trim().length === 0 ? 0 : text.trim().split(/\s+/).length;
+}
+
 export async function action({ request, context }: Route.ActionArgs) {
 	const formData = await request.formData();
 	const file = formData.get("artwork") as File | null;
 	const title = (formData.get("title") as string | null)?.trim() ?? "";
 	const artist = (formData.get("artist") as string | null)?.trim() ?? "";
+	const description = (formData.get("description") as string | null)?.trim() ?? "";
 
 	const missing: string[] = [];
 	if (!title) missing.push("Title");
@@ -21,6 +26,10 @@ export async function action({ request, context }: Route.ActionArgs) {
 		return {
 			error: `Please provide the following before uploading: ${missing.join(", ")}.`,
 		};
+	}
+
+	if (wordCount(description) > 100) {
+		return { error: "Description must be 100 words or fewer." };
 	}
 
 	if (!file!.type.startsWith("image/")) {
@@ -38,7 +47,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 	await context.cloudflare.env.ART_BUCKET.put(key, file!.stream(), {
 		httpMetadata: { contentType: file!.type },
-		customMetadata: { title, artist, status: "pending" },
+		customMetadata: { title, artist, description, status: "pending" },
 	});
 
 	return { success: true, key };
@@ -61,6 +70,7 @@ export default function Upload({ actionData }: Route.ComponentProps) {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [fileName, setFileName] = useState<string | null>(null);
 	const [isDragging, setIsDragging] = useState(false);
+	const [description, setDescription] = useState("");
 
 	function handleFiles(files: FileList | null) {
 		if (files && files.length > 0) {
@@ -70,6 +80,9 @@ export default function Upload({ actionData }: Route.ComponentProps) {
 			}
 		}
 	}
+
+	const descWordCount = wordCount(description);
+	const overLimit = descWordCount > 100;
 
 	return (
 		<div
@@ -148,7 +161,7 @@ export default function Upload({ actionData }: Route.ComponentProps) {
 						/>
 					</label>
 
-					<label style={{ ...labelStyle, marginBottom: 20 }}>
+					<label style={labelStyle}>
 						Artist name
 						<input
 							type="text"
@@ -157,6 +170,29 @@ export default function Upload({ actionData }: Route.ComponentProps) {
 							placeholder="Your name or handle"
 							style={inputStyle}
 						/>
+					</label>
+
+					<label style={{ ...labelStyle, marginBottom: 20 }}>
+						Description <span style={{ opacity: 0.6, fontWeight: 400 }}>(optional)</span>
+						<textarea
+							name="description"
+							placeholder="Say a little about this piece..."
+							value={description}
+							onChange={(e) => setDescription(e.target.value)}
+							rows={3}
+							style={{ ...inputStyle, resize: "vertical" }}
+						/>
+						<span
+							style={{
+								display: "block",
+								marginTop: 4,
+								fontSize: 12,
+								fontWeight: 400,
+								color: overLimit ? COLORS.coral : COLORS.textDim,
+							}}
+						>
+							{descWordCount}/100 words
+						</span>
 					</label>
 
 					<div
@@ -218,17 +254,17 @@ export default function Upload({ actionData }: Route.ComponentProps) {
 
 					<button
 						type="submit"
-						disabled={isSubmitting}
+						disabled={isSubmitting || overLimit}
 						style={{
 							width: "100%",
 							padding: "14px 0",
 							borderRadius: 999,
 							border: "none",
-							background: isSubmitting ? COLORS.border : COLORS.violet,
+							background: isSubmitting || overLimit ? COLORS.border : COLORS.violet,
 							color: "#fff",
 							fontWeight: 700,
 							fontSize: 15,
-							cursor: isSubmitting ? "default" : "pointer",
+							cursor: isSubmitting || overLimit ? "default" : "pointer",
 							fontFamily: "'Inter', sans-serif",
 						}}
 					>

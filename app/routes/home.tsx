@@ -21,6 +21,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 			key: obj.key,
 			title: obj.customMetadata?.title ?? "Untitled",
 			artist: obj.customMetadata?.artist ?? "Unknown",
+			description: obj.customMetadata?.description ?? "",
 			votes: parseInt(obj.customMetadata?.votes ?? "0", 10),
 			uploadedAt: obj.uploaded.toISOString(),
 		}));
@@ -244,7 +245,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 									href="/gallery"
 									style={{ textDecoration: "none", color: "inherit" }}
 								>
-									<ArtCard title={item.title} artist={item.artist} imgKey={item.key} votes={item.votes} uploadedAt={item.uploadedAt} />
+									<ArtCard title={item.title} artist={item.artist} imgKey={item.key} votes={item.votes} uploadedAt={item.uploadedAt} description={item.description} />
 								</a>
 							))}
 						</div>
@@ -327,13 +328,17 @@ function ArtCard({
 	imgKey,
 	votes,
 	uploadedAt,
+	description,
 }: {
 	title: string;
 	artist: string;
 	imgKey: string;
 	votes: number;
 	uploadedAt: string;
+	description: string;
 }) {
+	const [showDescription, setShowDescription] = useState(false);
+
 	return (
 		<div>
 			<div
@@ -394,7 +399,71 @@ function ArtCard({
 						{formatDate(uploadedAt)}
 					</p>
 				</div>
-				<VoteButton itemKey={imgKey} initialVotes={votes} />
+				<div style={{ display: "flex", alignItems: "center", gap: 6, position: "relative" }}>
+					<button
+						onClick={(e) => {
+							e.preventDefault();
+							e.stopPropagation();
+							setShowDescription((v) => !v);
+						}}
+						aria-label="Show description"
+						style={{
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
+							background: showDescription ? COLORS.violet : COLORS.bgPanel,
+							border: `1px solid ${showDescription ? COLORS.violet : COLORS.border}`,
+							borderRadius: 999,
+							padding: "6px 12px",
+							cursor: "pointer",
+						}}
+					>
+						<svg
+							width="15"
+							height="15"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke={showDescription ? "#0A0A0A" : COLORS.textDim}
+							strokeWidth="2"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+						>
+							<path d="M21 12a8 8 0 0 1-8 8H8l-5 3 1.5-4.5A8 8 0 1 1 21 12Z" />
+						</svg>
+					</button>
+
+					{showDescription && (
+						<div
+							onClick={(e) => {
+								e.preventDefault();
+								e.stopPropagation();
+							}}
+							style={{
+								position: "absolute",
+								bottom: "calc(100% + 8px)",
+								right: 0,
+								width: 220,
+								background: COLORS.bgPanel,
+								border: `1px solid ${COLORS.border}`,
+								borderRadius: 10,
+								padding: 12,
+								fontSize: 13,
+								lineHeight: 1.5,
+								color: COLORS.text,
+								zIndex: 20,
+								boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+							}}
+						>
+							{description.trim() ? description : (
+								<span style={{ color: COLORS.textDim, fontStyle: "italic" }}>
+									No description provided.
+								</span>
+							)}
+						</div>
+					)}
+
+					<VoteButton itemKey={imgKey} initialVotes={votes} />
+				</div>
 			</div>
 		</div>
 	);

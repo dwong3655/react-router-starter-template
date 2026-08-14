@@ -28,6 +28,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 			title: obj.customMetadata?.title ?? "Untitled",
 			artist: obj.customMetadata?.artist ?? "Unknown",
 			status: obj.customMetadata?.status ?? "pending",
+			votes: parseInt(obj.customMetadata?.votes ?? "0", 10),
 		}));
 
 	const updatesListed = await context.cloudflare.env.ART_BUCKET.list({
@@ -105,6 +106,17 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 	if (intent === "reject" || intent === "delete") {
 		await context.cloudflare.env.ART_BUCKET.delete(key);
+		return { success: true };
+	}
+
+	if (intent === "reset-votes") {
+		const object = await context.cloudflare.env.ART_BUCKET.get(key);
+		if (object) {
+			await context.cloudflare.env.ART_BUCKET.put(key, object.body, {
+				httpMetadata: object.httpMetadata,
+				customMetadata: { ...object.customMetadata, votes: "0" },
+			});
+		}
 		return { success: true };
 	}
 
@@ -249,6 +261,7 @@ export default function Admin({ loaderData, actionData }: Route.ComponentProps) 
 										<ThumbBox imgKey={item.key} title={item.title} />
 										<p style={itemTitleStyle}>{item.title}</p>
 										<p style={itemArtistStyle}>by {item.artist}</p>
+										<p style={itemVotesStyle}>⭐ {item.votes} votes</p>
 										<div style={{ display: "flex", gap: 8, marginTop: 10 }}>
 											<Form method="post" style={{ flex: 1 }}>
 												<input type="hidden" name="intent" value="approve" />
@@ -273,6 +286,24 @@ export default function Admin({ loaderData, actionData }: Route.ComponentProps) 
 												</button>
 											</Form>
 										</div>
+										<Form method="post" style={{ marginTop: 8 }}>
+											<input type="hidden" name="intent" value="reset-votes" />
+											<input type="hidden" name="key" value={item.key} />
+											<button
+												type="submit"
+												disabled={isBusy || item.votes === 0}
+												style={{
+													...actionButtonStyle,
+													width: "100%",
+													background: "transparent",
+													color: item.votes === 0 ? COLORS.textDim : COLORS.textDim,
+													border: `1px solid ${COLORS.border}`,
+													cursor: item.votes === 0 ? "default" : "pointer",
+												}}
+											>
+												Reset votes
+											</button>
+										</Form>
 									</div>
 								))}
 							</div>
@@ -294,6 +325,7 @@ export default function Admin({ loaderData, actionData }: Route.ComponentProps) 
 										<ThumbBox imgKey={item.key} title={item.title} />
 										<p style={itemTitleStyle}>{item.title}</p>
 										<p style={itemArtistStyle}>by {item.artist}</p>
+										<p style={itemVotesStyle}>⭐ {item.votes} votes</p>
 										<Form method="post" style={{ marginTop: 10 }}>
 											<input type="hidden" name="intent" value="delete" />
 											<input type="hidden" name="key" value={item.key} />
@@ -303,6 +335,24 @@ export default function Admin({ loaderData, actionData }: Route.ComponentProps) 
 												style={{ ...actionButtonStyle, width: "100%", background: "transparent", color: COLORS.coral, border: `1px solid ${COLORS.coral}` }}
 											>
 												Delete
+											</button>
+										</Form>
+										<Form method="post" style={{ marginTop: 8 }}>
+											<input type="hidden" name="intent" value="reset-votes" />
+											<input type="hidden" name="key" value={item.key} />
+											<button
+												type="submit"
+												disabled={isBusy || item.votes === 0}
+												style={{
+													...actionButtonStyle,
+													width: "100%",
+													background: "transparent",
+													color: COLORS.textDim,
+													border: `1px solid ${COLORS.border}`,
+													cursor: item.votes === 0 ? "default" : "pointer",
+												}}
+											>
+												Reset votes
 											</button>
 										</Form>
 									</div>
@@ -501,6 +551,12 @@ const itemTitleStyle: React.CSSProperties = {
 
 const itemArtistStyle: React.CSSProperties = {
 	margin: "2px 2px 0",
+	fontSize: 12,
+	color: COLORS.textDim,
+};
+
+const itemVotesStyle: React.CSSProperties = {
+	margin: "6px 2px 0",
 	fontSize: 12,
 	color: COLORS.textDim,
 };

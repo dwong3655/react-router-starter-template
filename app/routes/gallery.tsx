@@ -1,5 +1,6 @@
 import type { Route } from "./+types/gallery";
 import VoteButton from "../components/VoteButton";
+import { useState } from "react";
 
 export function meta({}: Route.MetaArgs) {
 	return [{ title: "Collection — ArtDrop Spot" }];
@@ -17,6 +18,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 			key: obj.key,
 			title: obj.customMetadata?.title ?? "Untitled",
 			artist: obj.customMetadata?.artist ?? "Unknown artist",
+			description: obj.customMetadata?.description ?? "",
 			votes: parseInt(obj.customMetadata?.votes ?? "0", 10),
 			uploadedAt: obj.uploaded.toISOString(),
 		}));
@@ -36,6 +38,7 @@ const COLORS = {
 
 export default function Gallery({ loaderData }: Route.ComponentProps) {
 	const { items } = loaderData;
+	const [lightboxItem, setLightboxItem] = useState<{ imgKey: string; title: string } | null>(null);
 
 	return (
 		<div
@@ -138,10 +141,20 @@ export default function Gallery({ loaderData }: Route.ComponentProps) {
 							imgKey={item.key}
 							votes={item.votes}
 							uploadedAt={item.uploadedAt}
+							description={item.description}
+							onOpen={() => setLightboxItem({ imgKey: item.key, title: item.title })}
 						/>
 					))}
 				</div>
 			</div>
+
+			{lightboxItem && (
+				<Lightbox
+					imgKey={lightboxItem.imgKey}
+					title={lightboxItem.title}
+					onClose={() => setLightboxItem(null)}
+				/>
+			)}
 		</div>
 	);
 }
@@ -179,21 +192,29 @@ function ArtCard({
 	imgKey,
 	votes,
 	uploadedAt,
+	description,
+	onOpen,
 }: {
 	title: string;
 	artist: string;
 	imgKey: string;
 	votes: number;
 	uploadedAt: string;
+	description: string;
+	onOpen: () => void;
 }) {
+	const [showDescription, setShowDescription] = useState(false);
+
 	return (
 		<div>
 			<div
+				onClick={onOpen}
 				style={{
 					aspectRatio: "1 / 1",
 					borderRadius: 12,
 					padding: 2,
 					background: `linear-gradient(135deg, ${COLORS.violet}, ${COLORS.coral})`,
+					cursor: "pointer",
 				}}
 			>
 				<div
@@ -246,7 +267,68 @@ function ArtCard({
 						{formatDate(uploadedAt)}
 					</p>
 				</div>
-				<VoteButton itemKey={imgKey} initialVotes={votes} />
+				<div style={{ display: "flex", alignItems: "center", gap: 6, position: "relative" }}>
+					<button
+						onClick={(e) => {
+							e.preventDefault();
+							e.stopPropagation();
+							setShowDescription((v) => !v);
+						}}
+						aria-label="Show description"
+						style={{
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
+							background: showDescription ? COLORS.violet : COLORS.bgPanel,
+							border: `1px solid ${showDescription ? COLORS.violet : COLORS.border}`,
+							borderRadius: 999,
+							padding: "6px 12px",
+							cursor: "pointer",
+						}}
+					>
+						<svg
+							width="15"
+							height="15"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke={showDescription ? "#0A0A0A" : COLORS.textDim}
+							strokeWidth="2"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+						>
+							<path d="M21 12a8 8 0 0 1-8 8H8l-5 3 1.5-4.5A8 8 0 1 1 21 12Z" />
+						</svg>
+					</button>
+
+					{showDescription && (
+						<div
+							onClick={(e) => e.stopPropagation()}
+							style={{
+								position: "absolute",
+								bottom: "calc(100% + 8px)",
+								right: 0,
+								width: 220,
+								background: COLORS.bgPanel,
+								border: `1px solid ${COLORS.border}`,
+								borderRadius: 10,
+								padding: 12,
+								fontSize: 13,
+								lineHeight: 1.5,
+								color: COLORS.text,
+								zIndex: 20,
+								boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+							}}
+						>
+							{description.trim() ? description : (
+								<span style={{ color: COLORS.textDim, fontStyle: "italic" }}>
+									No description provided.
+								</span>
+							)}
+						</div>
+					)}
+
+					<VoteButton itemKey={imgKey} initialVotes={votes} />
+				</div>
 			</div>
 		</div>
 	);
@@ -261,6 +343,82 @@ function formatDate(iso: string): string {
 		hour: "numeric",
 		minute: "2-digit",
 	});
+}
+
+function Lightbox({
+	imgKey,
+	title,
+	onClose,
+}: {
+	imgKey: string;
+	title: string;
+	onClose: () => void;
+}) {
+	const [size, setSize] = useState<{ width: number; height: number } | null>(null);
+
+	return (
+		<div
+			onClick={onClose}
+			style={{
+				position: "fixed",
+				inset: 0,
+				background: "rgba(0,0,0,0.88)",
+				display: "flex",
+				alignItems: "center",
+				justifyContent: "center",
+				zIndex: 100,
+				padding: 24,
+			}}
+		>
+			<button
+				onClick={onClose}
+				aria-label="Close"
+				style={{
+					position: "absolute",
+					top: 20,
+					right: 24,
+					background: "transparent",
+					border: "none",
+					color: "#FFFFFF",
+					fontSize: 32,
+					lineHeight: 1,
+					cursor: "pointer",
+					fontFamily: "'Inter', sans-serif",
+				}}
+			>
+				×
+			</button>
+			<img
+				src={`/art/${imgKey}`}
+				alt={title}
+				onClick={(e) => e.stopPropagation()}
+				onLoad={(e) => {
+					const img = e.currentTarget;
+					setSize({
+						width: img.naturalWidth * 0.75,
+						height: img.naturalHeight * 0.75,
+					});
+				}}
+				style={
+					size
+						? {
+								width: size.width,
+								height: size.height,
+								maxWidth: "100%",
+								maxHeight: "100%",
+								objectFit: "contain",
+								borderRadius: 8,
+							}
+						: {
+								maxWidth: "80%",
+								maxHeight: "80%",
+								objectFit: "contain",
+								opacity: 0,
+							}
+				}
+			/>
+		</div>
+	);
 }
 
 const navLinkStyle: React.CSSProperties = {
