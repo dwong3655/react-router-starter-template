@@ -143,10 +143,18 @@ function Logo() {
 					width: 30,
 					height: 30,
 					borderRadius: 8,
-					background: `linear-gradient(135deg, ${COLORS.violet}, ${COLORS.coral})`,
+					background: COLORS.violet,
 					flexShrink: 0,
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
 				}}
-			/>
+			>
+				<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A0A0A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+					<path d="M12 2.5C12 2.5 6 11 6 15.5a6 6 0 0 0 12 0C18 11 12 2.5 12 2.5Z" />
+					<circle cx="12" cy="16" r="2" fill="#FACC15" stroke="none" />
+				</svg>
+			</div>
 			<span
 				style={{
 					fontFamily: "'Archivo Black', sans-serif",
