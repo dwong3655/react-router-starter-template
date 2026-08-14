@@ -49,9 +49,17 @@ export default function Gallery({ loaderData }: Route.ComponentProps) {
 				rel="stylesheet"
 				href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&display=swap"
 			/>
+			<style>{`
+				@media (max-width: 640px) {
+					.ad-header { flex-wrap: wrap !important; gap: 14px !important; }
+					.ad-nav { flex-wrap: wrap !important; gap: 10px 18px !important; }
+					.ad-page-title { font-size: 26px !important; }
+				}
+			`}</style>
 
 			{/* Header */}
 			<header
+				className="ad-header"
 				style={{
 					display: "flex",
 					alignItems: "center",
@@ -63,7 +71,7 @@ export default function Gallery({ loaderData }: Route.ComponentProps) {
 				<a href="/" style={{ textDecoration: "none", color: "inherit" }}>
 					<Logo />
 				</a>
-				<nav style={{ display: "flex", alignItems: "center", gap: 32 }}>
+				<nav className="ad-nav" style={{ display: "flex", alignItems: "center", gap: 32 }}>
 					<a href="/upload" style={navLinkStyle}>
 						Upload
 					</a>
@@ -82,6 +90,7 @@ export default function Gallery({ loaderData }: Route.ComponentProps) {
 			{/* Body */}
 			<div style={{ maxWidth: 1200, margin: "0 auto", padding: "48px 32px" }}>
 				<h1
+					className="ad-page-title"
 					style={{
 						fontFamily: "'Archivo Black', sans-serif",
 						fontSize: 32,

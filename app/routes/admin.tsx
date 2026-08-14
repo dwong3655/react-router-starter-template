@@ -143,8 +143,15 @@ export default function Admin({ loaderData, actionData }: Route.ComponentProps) 
 				rel="stylesheet"
 				href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&display=swap"
 			/>
+			<style>{`
+				@media (max-width: 640px) {
+					.ad-header { flex-wrap: wrap !important; gap: 12px !important; }
+					.ad-tabs { overflow-x: auto !important; white-space: nowrap !important; }
+				}
+			`}</style>
 
 			<header
+				className="ad-header"
 				style={{
 					display: "flex",
 					alignItems: "center",
@@ -209,6 +216,7 @@ export default function Admin({ loaderData, actionData }: Route.ComponentProps) 
 
 				{/* Tabs */}
 				<div
+					className="ad-tabs"
 					style={{
 						display: "flex",
 						gap: 8,

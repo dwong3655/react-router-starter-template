@@ -62,6 +62,17 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 				rel="stylesheet"
 				href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&display=swap"
 			/>
+			<style>{`
+				@media (max-width: 768px) {
+					.ad-banner-title { font-size: 32px !important; }
+					.ad-banner-logo { width: 64px !important; height: 64px !important; }
+					.ad-nav { flex-wrap: wrap !important; gap: 14px 20px !important; justify-content: center !important; }
+					.ad-search { width: 100% !important; order: 99; }
+					.ad-hero-title { font-size: 34px !important; }
+					.ad-body { flex-direction: column !important; padding: 32px 20px !important; }
+					.ad-sidebar { width: 100% !important; }
+				}
+			`}</style>
 
 			{/* Banner */}
 			<div
@@ -72,6 +83,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 				}}
 			>
 				<img
+					className="ad-banner-logo"
 					src="/artdropspot-logo.png"
 					alt="ArtDrop Spot logo"
 					style={{
@@ -84,6 +96,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 					}}
 				/>
 				<span
+					className="ad-banner-title"
 					style={{
 						fontFamily: "'Archivo Black', sans-serif",
 						fontSize: 48,
@@ -110,7 +123,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 					zIndex: 10,
 				}}
 			>
-				<nav style={{ display: "flex", alignItems: "center", gap: 32 }}>
+				<nav className="ad-nav" style={{ display: "flex", alignItems: "center", gap: 32 }}>
 					<a href="/upload" style={navLinkStyle}>
 						Upload
 					</a>
@@ -124,6 +137,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 						Sign in
 					</a>
 					<input
+						className="ad-search"
 						type="search"
 						placeholder="Search art..."
 						value={query}
@@ -151,6 +165,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 				}}
 			>
 				<h1
+					className="ad-hero-title"
 					style={{
 						fontFamily: "'Archivo Black', sans-serif",
 						fontSize: "clamp(36px, 6vw, 64px)",
@@ -185,6 +200,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
 			{/* Body */}
 			<div
+				className="ad-body"
 				style={{
 					display: "flex",
 					gap: 32,
@@ -236,6 +252,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
 				{/* Sidebar */}
 				<aside
+					className="ad-sidebar"
 					style={{
 						width: 280,
 						flexShrink: 0,

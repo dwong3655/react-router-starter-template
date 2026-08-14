@@ -48,9 +48,16 @@ export default function Updates({ loaderData }: Route.ComponentProps) {
 				rel="stylesheet"
 				href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&display=swap"
 			/>
+			<style>{`
+				@media (max-width: 640px) {
+					.ad-header { flex-wrap: wrap !important; gap: 14px !important; }
+					.ad-nav { flex-wrap: wrap !important; gap: 10px 18px !important; }
+				}
+			`}</style>
 
 			{/* Header */}
 			<header
+				className="ad-header"
 				style={{
 					display: "flex",
 					alignItems: "center",
@@ -76,7 +83,7 @@ export default function Updates({ loaderData }: Route.ComponentProps) {
 						</span>
 					</div>
 				</a>
-				<nav style={{ display: "flex", alignItems: "center", gap: 32 }}>
+				<nav className="ad-nav" style={{ display: "flex", alignItems: "center", gap: 32 }}>
 					<a href="/upload" style={navLinkStyle}>Upload</a>
 					<a href="/gallery" style={navLinkStyle}>Collection</a>
 					<a href="/updates" style={{ ...navLinkStyle, color: COLORS.violet }}>Update log</a>
