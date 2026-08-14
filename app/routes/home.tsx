@@ -1,5 +1,6 @@
 import type { Route } from "./+types/home";
 import VoteButton from "../components/VoteButton";
+import { useState } from "react";
 
 export function meta({}: Route.MetaArgs) {
 	return [
@@ -16,7 +17,6 @@ export async function loader({ context }: Route.LoaderArgs) {
 	const items = listed.objects
 		.filter((obj) => obj.customMetadata?.status === "approved")
 		.sort((a, b) => b.uploaded.getTime() - a.uploaded.getTime())
-		.slice(0, 6)
 		.map((obj) => ({
 			key: obj.key,
 			title: obj.customMetadata?.title ?? "Untitled",
@@ -39,6 +39,15 @@ const COLORS = {
 
 export default function Home({ loaderData }: Route.ComponentProps) {
 	const { items } = loaderData;
+	const [query, setQuery] = useState("");
+
+	const filteredItems = query.trim()
+		? items.filter(
+				(item) =>
+					item.title.toLowerCase().includes(query.toLowerCase()) ||
+					item.artist.toLowerCase().includes(query.toLowerCase())
+			)
+		: items.slice(0, 6);
 
 	return (
 		<div
@@ -54,13 +63,50 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 				href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&display=swap"
 			/>
 
-			{/* Header */}
+			{/* Banner */}
+			<div
+				style={{
+					textAlign: "center",
+					padding: "36px 32px",
+					width: "100%",
+				}}
+			>
+				<div
+					style={{
+						width: 96,
+						height: 96,
+						borderRadius: 22,
+						background: COLORS.violet,
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						margin: "0 auto 14px",
+					}}
+				>
+					<svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#0A0A0A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+						<path d="M12 2.5C12 2.5 6 11 6 15.5a6 6 0 0 0 12 0C18 11 12 2.5 12 2.5Z" />
+						<circle cx="12" cy="16" r="3" fill={COLORS.violet} stroke="none" />
+					</svg>
+				</div>
+				<span
+					style={{
+						fontFamily: "'Archivo Black', sans-serif",
+						fontSize: 48,
+						letterSpacing: 0.3,
+					}}
+				>
+					ArtDrop <span style={{ color: COLORS.violet }}>Spot</span>
+				</span>
+			</div>
+
+			{/* Nav bar */}
 			<header
 				style={{
 					display: "flex",
 					alignItems: "center",
-					justifyContent: "space-between",
-					padding: "18px 32px",
+					justifyContent: "center",
+					padding: "14px 32px",
+					borderTop: `1px solid ${COLORS.border}`,
 					borderBottom: `1px solid ${COLORS.border}`,
 					position: "sticky",
 					top: 0,
@@ -69,8 +115,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 					zIndex: 10,
 				}}
 			>
-				<Logo />
-
 				<nav style={{ display: "flex", alignItems: "center", gap: 32 }}>
 					<a href="/upload" style={navLinkStyle}>
 						Upload
@@ -87,6 +131,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 					<input
 						type="search"
 						placeholder="Search art..."
+						value={query}
+						onChange={(e) => setQuery(e.target.value)}
 						style={{
 							padding: "9px 14px",
 							borderRadius: 8,
@@ -134,7 +180,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 						lineHeight: 1.6,
 					}}
 				>
-					A space for digital artists to share their work, build a
+					A space for artists to share their work, build a
 					following, and see what everyone else is making.
 				</p>
 				<a href="/upload" style={ctaButtonStyle}>
@@ -163,12 +209,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 							marginBottom: 24,
 						}}
 					>
-						RECENT CREATIONS
+						{query.trim() ? `RESULTS FOR "${query.trim().toUpperCase()}"` : "RECENT CREATIONS"}
 					</h2>
 
-					{items.length === 0 ? (
+					{filteredItems.length === 0 ? (
 						<p style={{ color: COLORS.textDim }}>
-							No artwork uploaded yet — be the first.
+							{query.trim()
+								? "No art matches your search."
+								: "No artwork uploaded yet — be the first."}
 						</p>
 					) : (
 						<div
@@ -178,7 +226,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 								gap: 20,
 							}}
 						>
-							{items.map((item) => (
+							{filteredItems.map((item) => (
 								<a
 									key={item.key}
 									href="/gallery"
