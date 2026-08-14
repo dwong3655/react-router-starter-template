@@ -6,7 +6,64 @@ export function meta({}: Route.MetaArgs) {
 	return [{ title: "Admin Login — ArtDrop Spot" }];
 }
 
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MINUTES = 15;
+
+function getClientIp(request: Request): string {
+	return (
+		request.headers.get("CF-Connecting-IP") ??
+		request.headers.get("X-Forwarded-For") ??
+		"unknown"
+	);
+}
+
+async function getAttempts(
+	bucket: R2Bucket,
+	ip: string
+): Promise<{ count: number; firstAttempt: number } | null> {
+	const object = await bucket.get(`login-attempts/${ip}.json`);
+	if (!object) return null;
+	try {
+		return await object.json<{ count: number; firstAttempt: number }>();
+	} catch {
+		return null;
+	}
+}
+
+async function recordFailedAttempt(bucket: R2Bucket, ip: string) {
+	const existing = await getAttempts(bucket, ip);
+	const now = Date.now();
+
+	const data =
+		existing && now - existing.firstAttempt < LOCKOUT_MINUTES * 60 * 1000
+			? { count: existing.count + 1, firstAttempt: existing.firstAttempt }
+			: { count: 1, firstAttempt: now };
+
+	await bucket.put(`login-attempts/${ip}.json`, JSON.stringify(data));
+}
+
+async function clearAttempts(bucket: R2Bucket, ip: string) {
+	await bucket.delete(`login-attempts/${ip}.json`);
+}
+
 export async function action({ request, context }: Route.ActionArgs) {
+	const bucket = context.cloudflare.env.ART_BUCKET;
+	const ip = getClientIp(request);
+
+	const attempts = await getAttempts(bucket, ip);
+	const now = Date.now();
+
+	if (attempts && attempts.count >= MAX_ATTEMPTS) {
+		const elapsedMs = now - attempts.firstAttempt;
+		const lockoutMs = LOCKOUT_MINUTES * 60 * 1000;
+		if (elapsedMs < lockoutMs) {
+			const minutesLeft = Math.ceil((lockoutMs - elapsedMs) / 60000);
+			return {
+				error: `Too many failed attempts. Try again in ${minutesLeft} minute${minutesLeft === 1 ? "" : "s"}.`,
+			};
+		}
+	}
+
 	const formData = await request.formData();
 	const password = (formData.get("password") as string | null) ?? "";
 	const adminPassword = context.cloudflare.env.ADMIN_PASSWORD;
@@ -16,8 +73,11 @@ export async function action({ request, context }: Route.ActionArgs) {
 	}
 
 	if (password !== adminPassword) {
+		await recordFailedAttempt(bucket, ip);
 		return { error: "Incorrect password." };
 	}
+
+	await clearAttempts(bucket, ip);
 
 	return redirect("/admin", {
 		headers: { "Set-Cookie": adminSessionCookie(adminPassword) },

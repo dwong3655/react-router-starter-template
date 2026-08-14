@@ -21,7 +21,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 	});
 
 	const all = listed.objects
-		.filter((obj) => !obj.key.startsWith("updates/"))
+		.filter((obj) => !obj.key.startsWith("updates/") && !obj.key.startsWith("login-attempts/"))
 		.sort((a, b) => b.uploaded.getTime() - a.uploaded.getTime())
 		.map((obj) => ({
 			key: obj.key,
