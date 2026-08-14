@@ -18,6 +18,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 			title: obj.customMetadata?.title ?? "Untitled",
 			artist: obj.customMetadata?.artist ?? "Unknown artist",
 			votes: parseInt(obj.customMetadata?.votes ?? "0", 10),
+			uploadedAt: obj.uploaded.toISOString(),
 		}));
 
 	return { items };
@@ -136,6 +137,7 @@ export default function Gallery({ loaderData }: Route.ComponentProps) {
 							artist={item.artist}
 							imgKey={item.key}
 							votes={item.votes}
+							uploadedAt={item.uploadedAt}
 						/>
 					))}
 				</div>
@@ -176,11 +178,13 @@ function ArtCard({
 	artist,
 	imgKey,
 	votes,
+	uploadedAt,
 }: {
 	title: string;
 	artist: string;
 	imgKey: string;
 	votes: number;
+	uploadedAt: string;
 }) {
 	return (
 		<div>
@@ -238,11 +242,25 @@ function ArtCard({
 					<p style={{ margin: "2px 2px 0", fontSize: 12, color: COLORS.textDim }}>
 						by {artist}
 					</p>
+					<p style={{ margin: "2px 2px 0", fontSize: 11, color: COLORS.textDim, opacity: 0.7 }}>
+						{formatDate(uploadedAt)}
+					</p>
 				</div>
 				<VoteButton itemKey={imgKey} initialVotes={votes} />
 			</div>
 		</div>
 	);
+}
+
+function formatDate(iso: string): string {
+	const d = new Date(iso);
+	return d.toLocaleString(undefined, {
+		year: "numeric",
+		month: "short",
+		day: "numeric",
+		hour: "numeric",
+		minute: "2-digit",
+	});
 }
 
 const navLinkStyle: React.CSSProperties = {
