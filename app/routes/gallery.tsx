@@ -11,7 +11,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 	});
 
 	const items = listed.objects
-		.filter((obj) => obj.customMetadata?.status === "approved")
+		.filter((obj) => !obj.key.startsWith("updates/") && obj.customMetadata?.status === "approved")
 		.sort((a, b) => b.uploaded.getTime() - a.uploaded.getTime())
 		.map((obj) => ({
 			key: obj.key,

@@ -6,6 +6,7 @@ export default [
 	route("gallery", "routes/gallery.tsx"),
 	route("art/:key", "routes/art.$key.tsx"),
 	route("vote/:key", "routes/vote.$key.tsx"),
+	route("updates", "routes/updates.tsx"),
 	route("admin", "routes/admin.tsx"),
 	route("admin/login", "routes/admin.login.tsx"),
 ] satisfies RouteConfig;

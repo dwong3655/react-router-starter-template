@@ -1,5 +1,6 @@
 import type { Route } from "./+types/admin";
 import { Form, redirect, useNavigation } from "react-router";
+import { useState } from "react";
 import {
 	isAdminRequest,
 	clearAdminSessionCookie,
@@ -20,6 +21,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 	});
 
 	const all = listed.objects
+		.filter((obj) => !obj.key.startsWith("updates/"))
 		.sort((a, b) => b.uploaded.getTime() - a.uploaded.getTime())
 		.map((obj) => ({
 			key: obj.key,
@@ -28,9 +30,25 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 			status: obj.customMetadata?.status ?? "pending",
 		}));
 
+	const updatesListed = await context.cloudflare.env.ART_BUCKET.list({
+		prefix: "updates/",
+	});
+
+	const updates = await Promise.all(
+		updatesListed.objects
+			.sort((a, b) => b.uploaded.getTime() - a.uploaded.getTime())
+			.map(async (obj) => {
+				const object = await context.cloudflare.env.ART_BUCKET.get(obj.key);
+				if (!object) return null;
+				const data = await object.json<{ message: string; postedAt: string }>();
+				return { key: obj.key, ...data };
+			})
+	);
+
 	return {
 		pending: all.filter((i) => i.status === "pending"),
 		approved: all.filter((i) => i.status === "approved"),
+		updates: updates.filter((u): u is NonNullable<typeof u> => u !== null),
 	};
 }
 
@@ -48,6 +66,26 @@ export async function action({ request, context }: Route.ActionArgs) {
 		return redirect("/admin/login", {
 			headers: { "Set-Cookie": clearAdminSessionCookie() },
 		});
+	}
+
+	if (intent === "post-update") {
+		const message = (formData.get("message") as string | null)?.trim();
+		if (!message) {
+			return { error: "Update message can't be empty." };
+		}
+		const postedAt = new Date().toISOString();
+		const updateKey = `updates/${Date.now()}-${crypto.randomUUID()}.json`;
+		await context.cloudflare.env.ART_BUCKET.put(
+			updateKey,
+			JSON.stringify({ message, postedAt })
+		);
+		return { success: true };
+	}
+
+	if (intent === "delete-update") {
+		if (!key) return { error: "Missing update key." };
+		await context.cloudflare.env.ART_BUCKET.delete(key);
+		return { success: true };
 	}
 
 	if (!key) {
@@ -84,10 +122,13 @@ const COLORS = {
 	green: "#4ADE80",
 };
 
-export default function Admin({ loaderData }: Route.ComponentProps) {
-	const { pending, approved } = loaderData;
+type Tab = "pending" | "gallery" | "updates";
+
+export default function Admin({ loaderData, actionData }: Route.ComponentProps) {
+	const { pending, approved, updates } = loaderData;
 	const navigation = useNavigation();
 	const isBusy = navigation.state !== "idle";
+	const [tab, setTab] = useState<Tab>("pending");
 
 	return (
 		<div
@@ -166,101 +207,253 @@ export default function Admin({ loaderData }: Route.ComponentProps) {
 					style={{
 						fontFamily: "'Archivo Black', sans-serif",
 						fontSize: 28,
-						marginBottom: 32,
+						marginBottom: 24,
 					}}
 				>
 					Admin Dashboard
 				</h1>
 
-				{/* Pending */}
-				<section style={{ marginBottom: 48 }}>
-					<h2 style={sectionHeaderStyle}>
-						Pending review{" "}
-						<span style={{ color: COLORS.textDim, fontWeight: 400 }}>
-							({pending.length})
-						</span>
-					</h2>
+				{/* Tabs */}
+				<div
+					style={{
+						display: "flex",
+						gap: 8,
+						marginBottom: 32,
+						borderBottom: `1px solid ${COLORS.border}`,
+					}}
+				>
+					<TabButton active={tab === "pending"} onClick={() => setTab("pending")}>
+						Pending review ({pending.length})
+					</TabButton>
+					<TabButton active={tab === "gallery"} onClick={() => setTab("gallery")}>
+						Live gallery ({approved.length})
+					</TabButton>
+					<TabButton active={tab === "updates"} onClick={() => setTab("updates")}>
+						Update log ({updates.length})
+					</TabButton>
+				</div>
 
-					{pending.length === 0 ? (
-						<p style={{ color: COLORS.textDim, fontSize: 14 }}>
-							Nothing waiting for review.
-						</p>
-					) : (
-						<div style={gridStyle}>
-							{pending.map((item) => (
-								<div key={item.key} style={cardStyle}>
-									<ThumbBox imgKey={item.key} title={item.title} />
-									<p style={itemTitleStyle}>{item.title}</p>
-									<p style={itemArtistStyle}>by {item.artist}</p>
-									<div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-										<Form method="post" style={{ flex: 1 }}>
-											<input type="hidden" name="intent" value="approve" />
+				{/* Pending tab */}
+				{tab === "pending" && (
+					<section>
+						{pending.length === 0 ? (
+							<p style={{ color: COLORS.textDim, fontSize: 14 }}>
+								Nothing waiting for review.
+							</p>
+						) : (
+							<div style={gridStyle}>
+								{pending.map((item) => (
+									<div key={item.key} style={cardStyle}>
+										<ThumbBox imgKey={item.key} title={item.title} />
+										<p style={itemTitleStyle}>{item.title}</p>
+										<p style={itemArtistStyle}>by {item.artist}</p>
+										<div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+											<Form method="post" style={{ flex: 1 }}>
+												<input type="hidden" name="intent" value="approve" />
+												<input type="hidden" name="key" value={item.key} />
+												<button
+													type="submit"
+													disabled={isBusy}
+													style={{ ...actionButtonStyle, background: COLORS.green, color: "#0B0B10" }}
+												>
+													Approve
+												</button>
+											</Form>
+											<Form method="post" style={{ flex: 1 }}>
+												<input type="hidden" name="intent" value="reject" />
+												<input type="hidden" name="key" value={item.key} />
+												<button
+													type="submit"
+													disabled={isBusy}
+													style={{ ...actionButtonStyle, background: "transparent", color: COLORS.coral, border: `1px solid ${COLORS.coral}` }}
+												>
+													Delete
+												</button>
+											</Form>
+										</div>
+									</div>
+								))}
+							</div>
+						)}
+					</section>
+				)}
+
+				{/* Live gallery tab */}
+				{tab === "gallery" && (
+					<section>
+						{approved.length === 0 ? (
+							<p style={{ color: COLORS.textDim, fontSize: 14 }}>
+								Nothing published yet.
+							</p>
+						) : (
+							<div style={gridStyle}>
+								{approved.map((item) => (
+									<div key={item.key} style={cardStyle}>
+										<ThumbBox imgKey={item.key} title={item.title} />
+										<p style={itemTitleStyle}>{item.title}</p>
+										<p style={itemArtistStyle}>by {item.artist}</p>
+										<Form method="post" style={{ marginTop: 10 }}>
+											<input type="hidden" name="intent" value="delete" />
 											<input type="hidden" name="key" value={item.key} />
 											<button
 												type="submit"
 												disabled={isBusy}
-												style={{ ...actionButtonStyle, background: COLORS.green, color: "#0B0B10" }}
-											>
-												Approve
-											</button>
-										</Form>
-										<Form method="post" style={{ flex: 1 }}>
-											<input type="hidden" name="intent" value="reject" />
-											<input type="hidden" name="key" value={item.key} />
-											<button
-												type="submit"
-												disabled={isBusy}
-												style={{ ...actionButtonStyle, background: "transparent", color: COLORS.coral, border: `1px solid ${COLORS.coral}` }}
+												style={{ ...actionButtonStyle, width: "100%", background: "transparent", color: COLORS.coral, border: `1px solid ${COLORS.coral}` }}
 											>
 												Delete
 											</button>
 										</Form>
 									</div>
-								</div>
-							))}
-						</div>
-					)}
-				</section>
+								))}
+							</div>
+						)}
+					</section>
+				)}
 
-				{/* Live gallery */}
-				<section>
-					<h2 style={sectionHeaderStyle}>
-						Live gallery{" "}
-						<span style={{ color: COLORS.textDim, fontWeight: 400 }}>
-							({approved.length})
-						</span>
-					</h2>
+				{/* Update log tab */}
+				{tab === "updates" && (
+					<section>
+						<Form method="post" style={{ marginBottom: 32 }}>
+							<input type="hidden" name="intent" value="post-update" />
+							<textarea
+								name="message"
+								required
+								placeholder="Write an update for the site's changelog..."
+								rows={4}
+								style={{
+									width: "100%",
+									padding: "12px 14px",
+									borderRadius: 8,
+									border: `1px solid ${COLORS.border}`,
+									background: COLORS.bgPanel,
+									color: COLORS.text,
+									fontSize: 14,
+									fontFamily: "'Inter', sans-serif",
+									resize: "vertical",
+									boxSizing: "border-box",
+									marginBottom: 12,
+								}}
+							/>
+							<button
+								type="submit"
+								disabled={isBusy}
+								style={{
+									padding: "10px 24px",
+									borderRadius: 999,
+									border: "none",
+									background: COLORS.violet,
+									color: "#0A0A0A",
+									fontWeight: 700,
+									fontSize: 14,
+									cursor: isBusy ? "default" : "pointer",
+									fontFamily: "'Inter', sans-serif",
+								}}
+							>
+								Post update
+							</button>
+						</Form>
 
-					{approved.length === 0 ? (
-						<p style={{ color: COLORS.textDim, fontSize: 14 }}>
-							Nothing published yet.
-						</p>
-					) : (
-						<div style={gridStyle}>
-							{approved.map((item) => (
-								<div key={item.key} style={cardStyle}>
-									<ThumbBox imgKey={item.key} title={item.title} />
-									<p style={itemTitleStyle}>{item.title}</p>
-									<p style={itemArtistStyle}>by {item.artist}</p>
-									<Form method="post" style={{ marginTop: 10 }}>
-										<input type="hidden" name="intent" value="delete" />
-										<input type="hidden" name="key" value={item.key} />
-										<button
-											type="submit"
-											disabled={isBusy}
-											style={{ ...actionButtonStyle, width: "100%", background: "transparent", color: COLORS.coral, border: `1px solid ${COLORS.coral}` }}
-										>
-											Delete
-										</button>
-									</Form>
-								</div>
-							))}
-						</div>
-					)}
-				</section>
+						{actionData?.error && (
+							<p style={{ color: "#FF6B6B", fontSize: 14, marginBottom: 20 }}>
+								{actionData.error}
+							</p>
+						)}
+
+						{updates.length === 0 ? (
+							<p style={{ color: COLORS.textDim, fontSize: 14 }}>
+								No updates posted yet.
+							</p>
+						) : (
+							<div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+								{updates.map((entry) => (
+									<div
+										key={entry.key}
+										style={{
+											...cardStyle,
+											display: "flex",
+											justifyContent: "space-between",
+											alignItems: "flex-start",
+											gap: 16,
+										}}
+									>
+										<div>
+											<p style={{ margin: "0 0 6px", fontSize: 12, color: COLORS.violet, fontWeight: 700 }}>
+												{formatDate(entry.postedAt)}
+											</p>
+											<p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+												{entry.message}
+											</p>
+										</div>
+										<Form method="post">
+											<input type="hidden" name="intent" value="delete-update" />
+											<input type="hidden" name="key" value={entry.key} />
+											<button
+												type="submit"
+												disabled={isBusy}
+												style={{
+													...actionButtonStyle,
+													width: "auto",
+													padding: "6px 14px",
+													background: "transparent",
+													color: COLORS.coral,
+													border: `1px solid ${COLORS.coral}`,
+													whiteSpace: "nowrap",
+												}}
+											>
+												Delete
+											</button>
+										</Form>
+									</div>
+								))}
+							</div>
+						)}
+					</section>
+				)}
 			</div>
 		</div>
 	);
+}
+
+function TabButton({
+	active,
+	onClick,
+	children,
+}: {
+	active: boolean;
+	onClick: () => void;
+	children: React.ReactNode;
+}) {
+	return (
+		<button
+			onClick={onClick}
+			style={{
+				background: "none",
+				border: "none",
+				borderBottom: active ? `2px solid ${COLORS.violet}` : "2px solid transparent",
+				color: active ? COLORS.text : COLORS.textDim,
+				padding: "10px 4px",
+				marginRight: 24,
+				marginBottom: -1,
+				fontSize: 14,
+				fontWeight: 700,
+				cursor: "pointer",
+				fontFamily: "'Inter', sans-serif",
+			}}
+		>
+			{children}
+		</button>
+	);
+}
+
+function formatDate(iso: string): string {
+	const d = new Date(iso);
+	return d.toLocaleString(undefined, {
+		year: "numeric",
+		month: "long",
+		day: "numeric",
+		hour: "numeric",
+		minute: "2-digit",
+	});
 }
 
 function ThumbBox({ imgKey, title }: { imgKey: string; title: string }) {
@@ -284,12 +477,6 @@ function ThumbBox({ imgKey, title }: { imgKey: string; title: string }) {
 		</div>
 	);
 }
-
-const sectionHeaderStyle: React.CSSProperties = {
-	fontFamily: "'Archivo Black', sans-serif",
-	fontSize: 18,
-	marginBottom: 16,
-};
 
 const gridStyle: React.CSSProperties = {
 	display: "grid",
