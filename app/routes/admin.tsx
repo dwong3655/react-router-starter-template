@@ -131,7 +131,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 	});
 
 	const all = listed.objects
-		.filter((obj) => !obj.key.startsWith("updates/") && !obj.key.startsWith("login-attempts/"))
+		.filter((obj) => !obj.key.startsWith("updates/") && !obj.key.startsWith("login-attempts/") && !obj.key.startsWith("board/") && !obj.key.startsWith("board-last-post/"))
 		.sort((a, b) => b.uploaded.getTime() - a.uploaded.getTime())
 		.map((obj) => ({
 			key: obj.key,
@@ -158,10 +158,31 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 	const stats = await fetchSiteStats(context.cloudflare.env.CLOUDFLARE_API_TOKEN, rangeHours);
 
+	const boardListed = await context.cloudflare.env.ART_BUCKET.list({
+		prefix: "board/",
+	});
+
+	const boardPosts = await Promise.all(
+		boardListed.objects
+			.sort((a, b) => b.uploaded.getTime() - a.uploaded.getTime())
+			.map(async (obj) => {
+				const object = await context.cloudflare.env.ART_BUCKET.get(obj.key);
+				if (!object) return null;
+				const data = await object.json<{
+					handle: string;
+					message: string;
+					emoji: string;
+					postedAt: string;
+				}>();
+				return { key: obj.key, ...data };
+			})
+	);
+
 	return {
 		pending: all.filter((i) => i.status === "pending"),
 		approved: all.filter((i) => i.status === "approved"),
 		updates: updates.filter((u): u is NonNullable<typeof u> => u !== null),
+		boardPosts: boardPosts.filter((p): p is NonNullable<typeof p> => p !== null),
 		stats,
 		range,
 	};
@@ -199,6 +220,12 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 	if (intent === "delete-update") {
 		if (!key) return { error: "Missing update key." };
+		await context.cloudflare.env.ART_BUCKET.delete(key);
+		return { success: true };
+	}
+
+	if (intent === "delete-board-post") {
+		if (!key) return { error: "Missing post key." };
 		await context.cloudflare.env.ART_BUCKET.delete(key);
 		return { success: true };
 	}
@@ -248,17 +275,17 @@ const COLORS = {
 	green: "#4ADE80",
 };
 
-type Tab = "pending" | "gallery" | "updates" | "stats";
+type Tab = "pending" | "gallery" | "updates" | "board" | "stats";
 
 export default function Admin({ loaderData, actionData }: Route.ComponentProps) {
-	const { pending, approved, updates, stats, range } = loaderData;
+	const { pending, approved, updates, boardPosts, stats, range } = loaderData;
 	const navigation = useNavigation();
 	const isBusy = navigation.state !== "idle";
 	const [tab, setTab] = useState<Tab>(() => {
 		if (typeof window === "undefined") return "pending";
 		const params = new URLSearchParams(window.location.search);
 		const t = params.get("tab");
-		return t === "gallery" || t === "updates" || t === "stats" ? t : "pending";
+		return t === "gallery" || t === "updates" || t === "board" || t === "stats" ? t : "pending";
 	});
 
 	return (
@@ -363,6 +390,9 @@ export default function Admin({ loaderData, actionData }: Route.ComponentProps) 
 					</TabButton>
 					<TabButton active={tab === "updates"} onClick={() => setTab("updates")}>
 						Update log ({updates.length})
+					</TabButton>
+					<TabButton active={tab === "board"} onClick={() => setTab("board")}>
+						Board posts ({boardPosts.length})
 					</TabButton>
 					<TabButton active={tab === "stats"} onClick={() => setTab("stats")}>
 						Site stats
@@ -561,6 +591,63 @@ export default function Admin({ loaderData, actionData }: Route.ComponentProps) 
 										<Form method="post">
 											<input type="hidden" name="intent" value="delete-update" />
 											<input type="hidden" name="key" value={entry.key} />
+											<button
+												type="submit"
+												disabled={isBusy}
+												style={{
+													...actionButtonStyle,
+													width: "auto",
+													padding: "6px 14px",
+													background: "transparent",
+													color: COLORS.coral,
+													border: `1px solid ${COLORS.coral}`,
+													whiteSpace: "nowrap",
+												}}
+											>
+												Delete
+											</button>
+										</Form>
+									</div>
+								))}
+							</div>
+						)}
+					</section>
+				)}
+
+				{/* Board posts tab */}
+				{tab === "board" && (
+					<section>
+						{boardPosts.length === 0 ? (
+							<p style={{ color: COLORS.textDim, fontSize: 14 }}>
+								No bulletin board posts yet.
+							</p>
+						) : (
+							<div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+								{boardPosts.map((post) => (
+									<div
+										key={post.key}
+										style={{
+											...cardStyle,
+											display: "flex",
+											gap: 12,
+											alignItems: "flex-start",
+										}}
+									>
+										<span style={{ fontSize: 22, flexShrink: 0 }}>{post.emoji}</span>
+										<div style={{ flex: 1, minWidth: 0 }}>
+											<div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+												<span style={{ fontWeight: 700, fontSize: 14 }}>{post.handle}</span>
+												<span style={{ fontSize: 11, color: COLORS.textDim }}>
+													{formatDate(post.postedAt)}
+												</span>
+											</div>
+											<p style={{ margin: "4px 0 0", fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+												{post.message}
+											</p>
+										</div>
+										<Form method="post">
+											<input type="hidden" name="intent" value="delete-board-post" />
+											<input type="hidden" name="key" value={post.key} />
 											<button
 												type="submit"
 												disabled={isBusy}

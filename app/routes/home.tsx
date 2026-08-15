@@ -129,8 +129,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 					<a href="/upload" style={navLinkStyle}>
 						Upload
 					</a>
-					<a href="/gallery" style={navLinkStyle}>
+				<a href="/gallery" style={navLinkStyle}>
 						Collection
+					</a>
+					<a href="/board" style={navLinkStyle}>
+						Bulletin Board
 					</a>
 					<a href="/updates" style={navLinkStyle}>
 						Update Log
@@ -284,6 +287,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 						</a>
 						<a href="/gallery" style={sidebarButtonStyle(false)}>
 							Collection
+						</a>
+						<a href="/board" style={sidebarButtonStyle(false)}>
+							Bulletin Board
 						</a>
 						<a href="/updates" style={sidebarButtonStyle(false)}>
 							Update Log

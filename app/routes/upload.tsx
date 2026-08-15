@@ -125,6 +125,9 @@ export default function Upload({ actionData }: Route.ComponentProps) {
 					<a href="/gallery" style={navLinkStyle}>
 						Collection
 					</a>
+					<a href="/board" style={navLinkStyle}>
+						Bulletin Board
+					</a>
 					<a href="/updates" style={navLinkStyle}>
 						Update log
 					</a>
