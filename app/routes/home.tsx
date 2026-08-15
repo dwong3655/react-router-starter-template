@@ -133,7 +133,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 						Collection
 					</a>
 					<a href="/updates" style={navLinkStyle}>
-						Update log
+						Update Log
 					</a>
 					<a href="/admin" style={{ ...navLinkStyle, color: COLORS.textDim, fontWeight: 500 }}>
 						Sign in
@@ -196,7 +196,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 					following, and see what everyone else is making.
 				</p>
 				<a href="/upload" style={ctaButtonStyle}>
-					Upload your art
+					UPLOAD
 				</a>
 			</section>
 
@@ -286,7 +286,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 							Collection
 						</a>
 						<a href="/updates" style={sidebarButtonStyle(false)}>
-							Update log
+							Update Log
 						</a>
 					</nav>
 				</aside>
