@@ -10,11 +10,121 @@ export function meta({}: Route.MetaArgs) {
 	return [{ title: "Admin Dashboard — ArtDrop Spot" }];
 }
 
+const ZONE_ID = "0d16819701df0e04eda695a47d5da7bd";
+
+type SiteStats = {
+	totalRequests: number;
+	uniqueVisitors: number;
+	topCountries: { country: string; requests: number }[];
+	error?: string;
+};
+
+async function fetchSiteStats(apiToken: string | undefined, rangeHours: number): Promise<SiteStats> {
+	if (!apiToken) {
+		return { totalRequests: 0, uniqueVisitors: 0, topCountries: [], error: "Analytics not configured." };
+	}
+
+	const until = new Date();
+	const since = new Date(until.getTime() - rangeHours * 60 * 60 * 1000);
+	const sinceDate = since.toISOString().slice(0, 10);
+	const untilDate = until.toISOString().slice(0, 10);
+
+	// Daily rollups (httpRequests1dGroups) have longer retention than the
+	// per-request adaptive dataset, so a single query safely covers 24h/7d/30d.
+	const query = `
+		query GetStats($zoneTag: string, $since: string, $until: string) {
+			viewer {
+				zones(filter: { zoneTag: $zoneTag }) {
+					httpRequests1dGroups(
+						limit: 31
+						orderBy: [date_ASC]
+						filter: { date_geq: $since, date_leq: $until }
+					) {
+						dimensions { date }
+						sum {
+							requests
+							countryMap {
+								requests
+								clientCountryName
+							}
+						}
+						uniq { uniques }
+					}
+				}
+			}
+		}
+	`;
+
+	try {
+		const res = await fetch("https://api.cloudflare.com/client/v4/graphql", {
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${apiToken}`,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				query,
+				variables: {
+					zoneTag: ZONE_ID,
+					since: sinceDate,
+					until: untilDate,
+				},
+			}),
+		});
+
+		const json = await res.json<any>();
+
+		if (json.errors && json.errors.length > 0) {
+			return {
+				totalRequests: 0,
+				uniqueVisitors: 0,
+				topCountries: [],
+				error: json.errors[0]?.message ?? "Failed to load analytics.",
+			};
+		}
+
+		const days = json?.data?.viewer?.zones?.[0]?.httpRequests1dGroups ?? [];
+
+		let totalRequests = 0;
+		let uniqueVisitors = 0;
+		const countryTotals = new Map<string, number>();
+
+		for (const day of days) {
+			totalRequests += day?.sum?.requests ?? 0;
+			uniqueVisitors += day?.uniq?.uniques ?? 0;
+			for (const row of day?.sum?.countryMap ?? []) {
+				const country = row.clientCountryName ?? "Unknown";
+				countryTotals.set(country, (countryTotals.get(country) ?? 0) + (row.requests ?? 0));
+			}
+		}
+
+		const topCountries = [...countryTotals.entries()]
+			.map(([country, requests]) => ({ country, requests }))
+			.sort((a, b) => b.requests - a.requests)
+			.slice(0, 10);
+
+		return { totalRequests, uniqueVisitors, topCountries };
+	} catch {
+		return {
+			totalRequests: 0,
+			uniqueVisitors: 0,
+			topCountries: [],
+			error: "Could not reach Cloudflare Analytics.",
+		};
+	}
+}
+
 export async function loader({ request, context }: Route.LoaderArgs) {
 	const adminPassword = context.cloudflare.env.ADMIN_PASSWORD;
 	if (!adminPassword || !isAdminRequest(request, adminPassword)) {
 		throw redirect("/admin/login");
 	}
+
+	const url = new URL(request.url);
+	const rangeParam = url.searchParams.get("range");
+	const rangeHours = rangeParam === "7d" ? 24 * 7 : rangeParam === "30d" ? 24 * 30 : 24;
+	const range: "24h" | "7d" | "30d" =
+		rangeParam === "7d" ? "7d" : rangeParam === "30d" ? "30d" : "24h";
 
 	const listed = await context.cloudflare.env.ART_BUCKET.list({
 		include: ["customMetadata"],
@@ -46,10 +156,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 			})
 	);
 
+	const stats = await fetchSiteStats(context.cloudflare.env.CLOUDFLARE_API_TOKEN, rangeHours);
+
 	return {
 		pending: all.filter((i) => i.status === "pending"),
 		approved: all.filter((i) => i.status === "approved"),
 		updates: updates.filter((u): u is NonNullable<typeof u> => u !== null),
+		stats,
+		range,
 	};
 }
 
@@ -134,13 +248,18 @@ const COLORS = {
 	green: "#4ADE80",
 };
 
-type Tab = "pending" | "gallery" | "updates";
+type Tab = "pending" | "gallery" | "updates" | "stats";
 
 export default function Admin({ loaderData, actionData }: Route.ComponentProps) {
-	const { pending, approved, updates } = loaderData;
+	const { pending, approved, updates, stats, range } = loaderData;
 	const navigation = useNavigation();
 	const isBusy = navigation.state !== "idle";
-	const [tab, setTab] = useState<Tab>("pending");
+	const [tab, setTab] = useState<Tab>(() => {
+		if (typeof window === "undefined") return "pending";
+		const params = new URLSearchParams(window.location.search);
+		const t = params.get("tab");
+		return t === "gallery" || t === "updates" || t === "stats" ? t : "pending";
+	});
 
 	return (
 		<div
@@ -245,6 +364,9 @@ export default function Admin({ loaderData, actionData }: Route.ComponentProps) 
 					<TabButton active={tab === "updates"} onClick={() => setTab("updates")}>
 						Update log ({updates.length})
 					</TabButton>
+					<TabButton active={tab === "stats"} onClick={() => setTab("stats")}>
+						Site stats
+					</TabButton>
 				</div>
 
 				{/* Pending tab */}
@@ -296,7 +418,7 @@ export default function Admin({ loaderData, actionData }: Route.ComponentProps) 
 													...actionButtonStyle,
 													width: "100%",
 													background: "transparent",
-													color: item.votes === 0 ? COLORS.textDim : COLORS.textDim,
+													color: COLORS.textDim,
 													border: `1px solid ${COLORS.border}`,
 													cursor: item.votes === 0 ? "default" : "pointer",
 												}}
@@ -461,8 +583,164 @@ export default function Admin({ loaderData, actionData }: Route.ComponentProps) 
 						)}
 					</section>
 				)}
+
+				{/* Site stats tab */}
+				{tab === "stats" && (
+					<section>
+						<div
+							style={{
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "space-between",
+								flexWrap: "wrap",
+								gap: 12,
+								marginBottom: 24,
+							}}
+						>
+							<p style={{ color: COLORS.textDim, fontSize: 14, margin: 0 }}>
+								Traffic via Cloudflare Analytics.
+							</p>
+
+							<Form method="get">
+								<input type="hidden" name="tab" value="stats" />
+								<select
+									name="range"
+									defaultValue={range}
+									onChange={(e) => e.currentTarget.form?.submit()}
+									style={{
+										padding: "8px 12px",
+										borderRadius: 8,
+										border: `1px solid ${COLORS.border}`,
+										background: COLORS.bgPanel,
+										color: COLORS.text,
+										fontSize: 13,
+										fontFamily: "'Inter', sans-serif",
+										cursor: "pointer",
+									}}
+								>
+									<option value="24h">Previous 24 hours</option>
+									<option value="7d">Previous 7 days</option>
+									<option value="30d">Previous 30 days</option>
+								</select>
+							</Form>
+						</div>
+
+						{stats.error ? (
+							<p style={{ color: "#FF6B6B", fontSize: 14 }}>{stats.error}</p>
+						) : (
+							<>
+								<div
+									style={{
+										display: "grid",
+										gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+										gap: 16,
+										marginBottom: 32,
+									}}
+								>
+									<StatCard
+										label="Total Requests"
+										value={stats.totalRequests.toLocaleString()}
+										icon={<RequestsIcon />}
+									/>
+								<StatCard
+										label={range === "24h" ? "Unique Visitors" : "Visits"}
+										value={stats.uniqueVisitors.toLocaleString()}
+										icon={<VisitorsIcon />}
+									/>
+								</div>
+
+								<h2
+									style={{
+										fontFamily: "'Archivo Black', sans-serif",
+										fontSize: 16,
+										marginBottom: 16,
+									}}
+								>
+									Top Countries
+								</h2>
+
+								{stats.topCountries.length === 0 ? (
+									<p style={{ color: COLORS.textDim, fontSize: 14 }}>
+										No traffic recorded in this period.
+									</p>
+								) : (
+									<div style={cardStyle}>
+										{stats.topCountries.map((row, i) => (
+											<div
+												key={row.country + i}
+												style={{
+													display: "flex",
+													justifyContent: "space-between",
+													padding: "10px 4px",
+													borderBottom:
+														i < stats.topCountries.length - 1
+															? `1px solid ${COLORS.border}`
+															: "none",
+													fontSize: 14,
+												}}
+											>
+												<span>{row.country}</span>
+												<span style={{ color: COLORS.textDim }}>
+													{row.requests.toLocaleString()} requests
+												</span>
+											</div>
+										))}
+									</div>
+								)}
+							</>
+						)}
+					</section>
+				)}
 			</div>
 		</div>
+	);
+}
+
+function StatCard({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+	return (
+		<div style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 14 }}>
+			<div
+				style={{
+					width: 44,
+					height: 44,
+					borderRadius: 10,
+					background: "rgba(250,204,21,0.12)",
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
+					flexShrink: 0,
+				}}
+			>
+				{icon}
+			</div>
+			<div>
+				<p style={{ margin: 0, fontSize: 12, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.5 }}>
+					{label}
+				</p>
+				<p style={{ margin: "4px 0 0", fontSize: 26, fontWeight: 700, fontFamily: "'Archivo Black', sans-serif" }}>
+					{value}
+				</p>
+			</div>
+		</div>
+	);
+}
+
+function RequestsIcon() {
+	return (
+		<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={COLORS.violet} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+			<path d="M3 12h4l3 8 4-16 3 8h4" />
+		</svg>
+	);
+}
+
+function VisitorsIcon() {
+	return (
+		<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={COLORS.violet} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+			<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+			<circle cx="9" cy="7" r="4" />
+			<path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+			<path d="M16 3.13a4 4 0 0 1 0 7.75" />
+		</svg>
 	);
 }
 
