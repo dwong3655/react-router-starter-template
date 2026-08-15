@@ -8,8 +8,8 @@ export function meta({}: Route.MetaArgs) {
 
 const MAX_ATTEMPTS_WINDOW_SEC = 30;
 
-function wordCount(text: string): number {
-	return text.trim().length === 0 ? 0 : text.trim().split(/\s+/).length;
+function charCount(text: string): number {
+	return text.trim().length;
 }
 
 function getClientIp(request: Request): string {
@@ -66,8 +66,8 @@ export async function action({ request, context }: Route.ActionArgs) {
 			return { error: "Display name must be 30 characters or fewer." };
 		}
 
-		if (wordCount(message) > 100) {
-			return { error: "Message must be 100 words or fewer." };
+		if (charCount(message) > 100) {
+			return { error: "Message must be 100 characters or fewer." };
 		}
 
 		// Rate limit check happens after formData is read, matching the
@@ -145,8 +145,8 @@ export default function Board({ loaderData, actionData }: Route.ComponentProps) 
 	const [selectedEmoji, setSelectedEmoji] = useState("💬");
 	const [pickerOpen, setPickerOpen] = useState(false);
 
-	const msgWordCount = wordCount(message);
-	const overLimit = msgWordCount > 100;
+	const msgCharCount = charCount(message);
+	const overLimit = msgCharCount > 100;
 
 	return (
 		<div
@@ -248,6 +248,7 @@ export default function Board({ loaderData, actionData }: Route.ComponentProps) 
 						<textarea
 							name="message"
 							required
+							maxLength={100}
 							value={message}
 							onChange={(e) => setMessage(e.target.value)}
 							placeholder="What's on your mind?"
@@ -263,7 +264,7 @@ export default function Board({ loaderData, actionData }: Route.ComponentProps) 
 							color: overLimit ? COLORS.coral : COLORS.textDim,
 						}}
 					>
-						{msgWordCount}/100 words
+						{msgCharCount}/100 characters
 					</span>
 
 					{/* Emoji picker */}
