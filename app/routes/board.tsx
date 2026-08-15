@@ -6,7 +6,7 @@ export function meta({}: Route.MetaArgs) {
 	return [{ title: "Bulletin Board — ArtDrop Spot" }];
 }
 
-const MAX_ATTEMPTS_WINDOW_MIN = 2;
+const MAX_ATTEMPTS_WINDOW_SEC = 30;
 
 function wordCount(text: string): number {
 	return text.trim().length === 0 ? 0 : text.trim().split(/\s+/).length;
@@ -46,49 +46,57 @@ export async function loader({ context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-	const bucket = context.cloudflare.env.ART_BUCKET;
-	const ip = getClientIp(request);
+	try {
+		const bucket = context.cloudflare.env.ART_BUCKET;
 
-	// Simple per-IP rate limit: one post per MAX_ATTEMPTS_WINDOW_MIN minutes.
-	const lastPostKey = `board-last-post/${ip}.json`;
-	const lastPostObj = await bucket.get(lastPostKey);
-	if (lastPostObj) {
-		const data = await lastPostObj.json<{ postedAt: number }>();
-		const elapsedMs = Date.now() - data.postedAt;
-		const windowMs = MAX_ATTEMPTS_WINDOW_MIN * 60 * 1000;
-		if (elapsedMs < windowMs) {
-			const secondsLeft = Math.ceil((windowMs - elapsedMs) / 1000);
-			return { error: `Please wait ${secondsLeft}s before posting again.` };
+		const formData = await request.formData();
+		const handle = (formData.get("handle") as string | null)?.trim() ?? "";
+		const message = (formData.get("message") as string | null)?.trim() ?? "";
+		const emoji = (formData.get("emoji") as string | null) ?? "💬";
+
+		const missing: string[] = [];
+		if (!handle) missing.push("Display name");
+		if (!message) missing.push("Message");
+
+		if (missing.length > 0) {
+			return { error: `Please provide: ${missing.join(", ")}.` };
 		}
+
+		if (handle.length > 30) {
+			return { error: "Display name must be 30 characters or fewer." };
+		}
+
+		if (wordCount(message) > 100) {
+			return { error: "Message must be 100 words or fewer." };
+		}
+
+		// Rate limit check happens after formData is read, matching the
+		// pattern used elsewhere in the app.
+		const ip = getClientIp(request);
+		const lastPostKey = `board-last-post/${ip}.json`;
+		const lastPostObj = await bucket.get(lastPostKey);
+		if (lastPostObj) {
+			const data = await lastPostObj.json<{ postedAt: number }>();
+			const elapsedMs = Date.now() - data.postedAt;
+			const windowMs = MAX_ATTEMPTS_WINDOW_SEC * 1000;
+			if (elapsedMs < windowMs) {
+				const secondsLeft = Math.ceil((windowMs - elapsedMs) / 1000);
+				return { error: `Please wait ${secondsLeft}s before posting again.` };
+			}
+		}
+
+		const postedAt = new Date().toISOString();
+		const postKey = `board/${Date.now()}-${crypto.randomUUID()}.json`;
+		await bucket.put(postKey, JSON.stringify({ handle, message, emoji, postedAt }));
+		await bucket.put(lastPostKey, JSON.stringify({ postedAt: Date.now() }));
+
+		return { success: true };
+	} catch (err) {
+		console.error("Board post action failed:", err);
+		return {
+			error: `Something went wrong: ${err instanceof Error ? err.message : String(err)}`,
+		};
 	}
-
-	const formData = await request.formData();
-	const handle = (formData.get("handle") as string | null)?.trim() ?? "";
-	const message = (formData.get("message") as string | null)?.trim() ?? "";
-	const emoji = (formData.get("emoji") as string | null) ?? "💬";
-
-	const missing: string[] = [];
-	if (!handle) missing.push("Display name");
-	if (!message) missing.push("Message");
-
-	if (missing.length > 0) {
-		return { error: `Please provide: ${missing.join(", ")}.` };
-	}
-
-	if (handle.length > 30) {
-		return { error: "Display name must be 30 characters or fewer." };
-	}
-
-	if (wordCount(message) > 100) {
-		return { error: "Message must be 100 words or fewer." };
-	}
-
-	const postedAt = new Date().toISOString();
-	const postKey = `board/${Date.now()}-${crypto.randomUUID()}.json`;
-	await bucket.put(postKey, JSON.stringify({ handle, message, emoji, postedAt }));
-	await bucket.put(lastPostKey, JSON.stringify({ postedAt: Date.now() }));
-
-	return { success: true };
 }
 
 const COLORS = {
@@ -261,7 +269,7 @@ export default function Board({ loaderData, actionData }: Route.ComponentProps) 
 					{/* Emoji picker */}
 					<div style={{ position: "relative", marginBottom: 20 }}>
 						<label style={{ ...labelStyle, marginBottom: 8 }}>Pick an emoji</label>
-						<input type="hidden" name="emoji" value={selectedEmoji} />
+					<input type="hidden" name="emoji" value={selectedEmoji} />
 						<button
 							type="button"
 							onClick={() => setPickerOpen((v) => !v)}
