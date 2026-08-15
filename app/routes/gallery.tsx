@@ -86,7 +86,7 @@ export default function Gallery({ loaderData }: Route.ComponentProps) {
 						Bulletin Board
 					</a>
 					<a href="/updates" style={navLinkStyle}>
-						Update log
+						Update Log
 					</a>
 					<a href="/admin" style={{ ...navLinkStyle, color: COLORS.textDim, fontWeight: 500 }}>
 						Sign in

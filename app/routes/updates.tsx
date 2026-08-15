@@ -87,7 +87,7 @@ export default function Updates({ loaderData }: Route.ComponentProps) {
 					<a href="/upload" style={navLinkStyle}>Upload</a>
 					<a href="/gallery" style={navLinkStyle}>Collection</a>
 					<a href="/board" style={navLinkStyle}>Bulletin Board</a>
-					<a href="/updates" style={{ ...navLinkStyle, color: COLORS.violet }}>Update log</a>
+					<a href="/updates" style={{ ...navLinkStyle, color: COLORS.violet }}>Update Log</a>
 					<a href="/admin" style={{ ...navLinkStyle, color: COLORS.textDim, fontWeight: 500 }}>Sign in</a>
 				</nav>
 			</header>
