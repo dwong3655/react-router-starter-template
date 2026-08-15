@@ -274,7 +274,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 							margin: "16px 0 24px",
 						}}
 					>
-						Upload your digital art, browse what the community is making, and
+						Upload your art, browse what the community is making, and
 						get your work seen.
 					</p>
 
