@@ -125,11 +125,14 @@ export default function Upload({ actionData }: Route.ComponentProps) {
 					<a href="/gallery" style={navLinkStyle}>
 						Collection
 					</a>
+					<a href="/rising-stars" style={navLinkStyle}>
+						Rising Stars
+					</a>
 					<a href="/board" style={navLinkStyle}>
 						Bulletin Board
 					</a>
 					<a href="/updates" style={navLinkStyle}>
-						Update Log
+						Update log
 					</a>
 					<a href="/admin" style={{ ...navLinkStyle, color: COLORS.textDim, fontWeight: 500 }}>
 						Sign in

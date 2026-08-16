@@ -8,8 +8,8 @@ export function meta({}: Route.MetaArgs) {
 
 const MAX_ATTEMPTS_WINDOW_SEC = 30;
 
-function charCount(text: string): number {
-	return text.trim().length;
+function wordCount(text: string): number {
+	return text.trim().length === 0 ? 0 : text.trim().split(/\s+/).length;
 }
 
 function getClientIp(request: Request): string {
@@ -66,8 +66,8 @@ export async function action({ request, context }: Route.ActionArgs) {
 			return { error: "Display name must be 30 characters or fewer." };
 		}
 
-		if (charCount(message) > 100) {
-			return { error: "Message must be 100 characters or fewer." };
+		if (wordCount(message) > 100) {
+			return { error: "Message must be 100 words or fewer." };
 		}
 
 		// Rate limit check happens after formData is read, matching the
@@ -145,8 +145,8 @@ export default function Board({ loaderData, actionData }: Route.ComponentProps) 
 	const [selectedEmoji, setSelectedEmoji] = useState("💬");
 	const [pickerOpen, setPickerOpen] = useState(false);
 
-	const msgCharCount = charCount(message);
-	const overLimit = msgCharCount > 100;
+	const msgWordCount = wordCount(message);
+	const overLimit = msgWordCount > 100;
 
 	return (
 		<div
@@ -194,6 +194,7 @@ export default function Board({ loaderData, actionData }: Route.ComponentProps) 
 				<nav className="ad-nav" style={{ display: "flex", alignItems: "center", gap: 32 }}>
 					<a href="/upload" style={navLinkStyle}>Upload</a>
 					<a href="/gallery" style={navLinkStyle}>Collection</a>
+					<a href="/rising-stars" style={navLinkStyle}>Rising Stars</a>
 					<a href="/board" style={{ ...navLinkStyle, color: COLORS.violet }}>Bulletin Board</a>
 					<a href="/updates" style={navLinkStyle}>Update Log</a>
 					<a href="/admin" style={{ ...navLinkStyle, color: COLORS.textDim, fontWeight: 500 }}>Sign in</a>
@@ -248,7 +249,6 @@ export default function Board({ loaderData, actionData }: Route.ComponentProps) 
 						<textarea
 							name="message"
 							required
-							maxLength={100}
 							value={message}
 							onChange={(e) => setMessage(e.target.value)}
 							placeholder="What's on your mind?"
@@ -264,7 +264,7 @@ export default function Board({ loaderData, actionData }: Route.ComponentProps) 
 							color: overLimit ? COLORS.coral : COLORS.textDim,
 						}}
 					>
-						{msgCharCount}/100 characters
+						{msgWordCount}/100 words
 					</span>
 
 					{/* Emoji picker */}

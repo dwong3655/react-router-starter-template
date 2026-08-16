@@ -4,6 +4,7 @@ export default [
 	index("routes/home.tsx"),
 	route("upload", "routes/upload.tsx"),
 	route("gallery", "routes/gallery.tsx"),
+	route("rising-stars", "routes/rising-stars.tsx"),
 	route("art/:key", "routes/art.$key.tsx"),
 	route("vote/:key", "routes/vote.$key.tsx"),
 	route("updates", "routes/updates.tsx"),

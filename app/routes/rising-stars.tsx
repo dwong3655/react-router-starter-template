@@ -1,10 +1,12 @@
-import type { Route } from "./+types/gallery";
+import type { Route } from "./+types/rising-stars";
 import VoteButton from "../components/VoteButton";
 import { useState } from "react";
 
 export function meta({}: Route.MetaArgs) {
-	return [{ title: "Collection — ArtDrop Spot" }];
+	return [{ title: "Rising Stars — ArtDrop Spot" }];
 }
+
+const RISING_STAR_THRESHOLD = 50;
 
 export async function loader({ context }: Route.LoaderArgs) {
 	const listed = await context.cloudflare.env.ART_BUCKET.list({
@@ -12,8 +14,23 @@ export async function loader({ context }: Route.LoaderArgs) {
 	});
 
 	const items = listed.objects
-		.filter((obj) => !obj.key.startsWith("updates/") && obj.customMetadata?.status === "approved")
-		.sort((a, b) => b.uploaded.getTime() - a.uploaded.getTime())
+		.filter((obj) => {
+			if (obj.key.startsWith("updates/")) return false;
+			if (obj.customMetadata?.status !== "approved") return false;
+			// Live membership: a piece is a Rising Star for as long as its
+			// CURRENT vote count is at or above the threshold. If votes drop
+			// below 50 (via downvoting or an admin reset), it drops out of
+			// this list automatically on the next load — no separate
+			// "removal" step needed. The piece is untouched in Collection.
+			const votes = parseInt(obj.customMetadata?.votes ?? "0", 10);
+			return votes >= RISING_STAR_THRESHOLD;
+		})
+		.sort((a, b) => {
+			// Highest votes first
+			const aVotes = parseInt(a.customMetadata?.votes ?? "0", 10);
+			const bVotes = parseInt(b.customMetadata?.votes ?? "0", 10);
+			return bVotes - aVotes;
+		})
 		.map((obj) => ({
 			key: obj.key,
 			title: obj.customMetadata?.title ?? "Untitled",
@@ -21,6 +38,12 @@ export async function loader({ context }: Route.LoaderArgs) {
 			description: obj.customMetadata?.description ?? "",
 			votes: parseInt(obj.customMetadata?.votes ?? "0", 10),
 			uploadedAt: obj.uploaded.toISOString(),
+			// featuredAt is informational only (shown as "Featured <date>" on
+			// the card) — it reflects the most recent time this piece crossed
+			// INTO the threshold, refreshed in vote.$key.tsx on re-entry.
+			// Falls back to uploadedAt for any legacy piece that hit 50
+			// before this field existed.
+			featuredAt: obj.customMetadata?.featuredAt ?? obj.uploaded.toISOString(),
 		}));
 
 	return { items };
@@ -36,7 +59,7 @@ const COLORS = {
 	border: "#2E2E2E",
 };
 
-export default function Gallery({ loaderData }: Route.ComponentProps) {
+export default function RisingStars({ loaderData }: Route.ComponentProps) {
 	const { items } = loaderData;
 	const [lightboxItem, setLightboxItem] = useState<{ imgKey: string; title: string } | null>(null);
 
@@ -79,17 +102,17 @@ export default function Gallery({ loaderData }: Route.ComponentProps) {
 					<a href="/upload" style={navLinkStyle}>
 						Upload
 					</a>
-					<a href="/gallery" style={{ ...navLinkStyle, color: COLORS.violet }}>
+					<a href="/gallery" style={navLinkStyle}>
 						Collection
 					</a>
-					<a href="/rising-stars" style={navLinkStyle}>
+					<a href="/rising-stars" style={{ ...navLinkStyle, color: COLORS.violet }}>
 						Rising Stars
 					</a>
 					<a href="/board" style={navLinkStyle}>
 						Bulletin Board
 					</a>
 					<a href="/updates" style={navLinkStyle}>
-						Update log
+						Update Log
 					</a>
 					<a href="/admin" style={{ ...navLinkStyle, color: COLORS.textDim, fontWeight: 500 }}>
 						Sign in
@@ -107,28 +130,16 @@ export default function Gallery({ loaderData }: Route.ComponentProps) {
 						margin: "0 0 8px",
 					}}
 				>
-					Collection
+					Rising Stars
 				</h1>
-				<p style={{ color: COLORS.textDim, fontSize: 15, marginBottom: 8 }}>
-					Everything the community has dropped so far.
+				<p style={{ color: COLORS.textDim, fontSize: 15, marginBottom: 32 }}>
+					Community favorites that reached {RISING_STAR_THRESHOLD}+ likes.
 				</p>
-				<a
-					href="/upload"
-					style={{
-						display: "inline-block",
-						marginBottom: 32,
-						color: COLORS.violet,
-						fontWeight: 600,
-						fontSize: 14,
-						textDecoration: "none",
-					}}
-				>
-					+ Upload new art
-				</a>
 
 				{items.length === 0 && (
 					<p style={{ color: COLORS.textDim }}>
-						No artwork uploaded yet — be the first.
+						No Rising Stars yet — the first piece to hit {RISING_STAR_THRESHOLD} likes will
+						show up here.
 					</p>
 				)}
 
@@ -137,6 +148,7 @@ export default function Gallery({ loaderData }: Route.ComponentProps) {
 						display: "grid",
 						gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
 						gap: 24,
+						paddingTop: 40,
 					}}
 				>
 					{items.map((item) => (
@@ -147,6 +159,7 @@ export default function Gallery({ loaderData }: Route.ComponentProps) {
 							imgKey={item.key}
 							votes={item.votes}
 							uploadedAt={item.uploadedAt}
+							featuredAt={item.featuredAt}
 							description={item.description}
 							onOpen={() => setLightboxItem({ imgKey: item.key, title: item.title })}
 						/>
@@ -198,6 +211,7 @@ function ArtCard({
 	imgKey,
 	votes,
 	uploadedAt,
+	featuredAt,
 	description,
 	onOpen,
 }: {
@@ -206,6 +220,7 @@ function ArtCard({
 	imgKey: string;
 	votes: number;
 	uploadedAt: string;
+	featuredAt: string;
 	description: string;
 	onOpen: () => void;
 }) {
@@ -216,6 +231,7 @@ function ArtCard({
 			<div
 				onClick={onOpen}
 				style={{
+					position: "relative",
 					aspectRatio: "1 / 1",
 					borderRadius: 12,
 					padding: 2,
@@ -223,6 +239,24 @@ function ArtCard({
 					cursor: "pointer",
 				}}
 			>
+				{/* Rising Star medal — every piece on this page is featured, so
+				    the badge always shows. Sized small and inset so it overlaps
+				    the corner without covering meaningful thumbnail area. */}
+				<img
+					src="/rising-star-badge.png"
+					alt="Rising Star"
+					style={{
+						position: "absolute",
+						top: -14,
+						right: -14,
+						width: 66,
+						height: 66,
+						zIndex: 5,
+						filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))",
+						pointerEvents: "none",
+					}}
+				/>
+
 				<div
 					style={{
 						width: "100%",
@@ -270,7 +304,10 @@ function ArtCard({
 						by {artist}
 					</p>
 					<p style={{ margin: "2px 2px 0", fontSize: 11, color: COLORS.textDim, opacity: 0.7 }}>
-						{formatDate(uploadedAt)}
+						Uploaded {formatDate(uploadedAt)}
+					</p>
+					<p style={{ margin: "2px 2px 0", fontSize: 11, color: COLORS.violet, opacity: 0.9 }}>
+						★ Featured {formatDate(featuredAt)}
 					</p>
 				</div>
 				<div style={{ display: "flex", alignItems: "center", gap: 6, position: "relative" }}>
@@ -337,6 +374,9 @@ function ArtCard({
 						</div>
 					)}
 
+					{/* Live vote button — matches Collection. Voting is no longer
+					    frozen after featuring; only the one-time featuredAt stamp
+					    (set in vote.$key.tsx) determines Rising Stars membership. */}
 					<VoteButton itemKey={imgKey} initialVotes={votes} />
 				</div>
 			</div>

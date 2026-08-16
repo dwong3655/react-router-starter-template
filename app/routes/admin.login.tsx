@@ -6,7 +6,7 @@ export function meta({}: Route.MetaArgs) {
 	return [{ title: "Admin Login — ArtDrop Spot" }];
 }
 
-const MAX_ATTEMPTS = 2;
+const MAX_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 15;
 
 function getClientIp(request: Request): string {
