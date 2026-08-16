@@ -1,5 +1,7 @@
 import type { Route } from "./+types/home";
 import VoteButton from "../components/VoteButton";
+import { TopPosters } from "../components/TopPosters";
+import { computeTopPosters } from "../lib/leaderboard";
 import { useState } from "react";
 
 export function meta({}: Route.MetaArgs) {
@@ -26,7 +28,9 @@ export async function loader({ context }: Route.LoaderArgs) {
 			uploadedAt: obj.uploaded.toISOString(),
 		}));
 
-	return { items };
+	const topPosters = computeTopPosters(items, 5);
+
+	return { items, topPosters };
 }
 
 const COLORS = {
@@ -40,7 +44,7 @@ const COLORS = {
 };
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-	const { items } = loaderData;
+	const { items, topPosters } = loaderData;
 	const [query, setQuery] = useState("");
 
 	const filteredItems = query.trim()
@@ -258,12 +262,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 					)}
 				</main>
 
-				{/* Sidebar */}
-				<aside
+				{/* Sidebar (nav card + Top Posters, stacked) */}
+				<div
 					className="ad-sidebar"
 					style={{
 						width: 280,
 						flexShrink: 0,
+						display: "flex",
+						flexDirection: "column",
+						gap: 24,
+					}}
+				>
+				<aside
+					style={{
 						background: COLORS.bgPanel,
 						border: `1px solid ${COLORS.border}`,
 						borderRadius: 16,
@@ -299,6 +310,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 						</a>
 					</nav>
 				</aside>
+
+				<TopPosters entries={topPosters} />
+				</div>
 			</div>
 		</div>
 	);
